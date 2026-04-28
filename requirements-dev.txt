@@ -1,7 +1,7 @@
 -r requirements.txt
 
 # Local development and CI test tooling.
-pytest==8.4.2
+pytest==9.0.3
 flake8==7.3.0
 pip-audit==2.9.0
 bandit[toml]==1.8.6
