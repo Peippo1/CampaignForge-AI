@@ -8,6 +8,6 @@ scikit-learn==1.7.2
 pyarrow==22.0.0
 pymysql==1.1.1
 SQLAlchemy==2.0.44
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 gspread==6.1.4
 google-auth==2.37.0
