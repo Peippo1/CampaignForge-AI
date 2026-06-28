@@ -6,13 +6,6 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
 from genai.schemas import (
     CampaignBrief,
     CampaignManifest,
@@ -48,6 +41,13 @@ def _init_tracing() -> Optional[str]:
     """
     if os.getenv("OTEL_ENABLED", "").lower() not in {"1", "true", "yes"}:
         return None
+
+    from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
     endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318/v1/traces")
     service_name = os.getenv("OTEL_SERVICE_NAME", "campaignforge-ai-fastapi")
