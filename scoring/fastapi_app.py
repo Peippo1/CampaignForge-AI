@@ -22,11 +22,13 @@ from genai.schemas import (
     ImageReviewRequest,
 )
 from genai.service import CampaignBriefService, CampaignExportService, CampaignImageService
+from genai.storage import CampaignStorage
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "clean_marketing.csv"
-campaign_brief_service = CampaignBriefService()
-campaign_image_service = CampaignImageService()
-campaign_export_service = CampaignExportService()
+campaign_storage = CampaignStorage()
+campaign_brief_service = CampaignBriefService(storage=campaign_storage)
+campaign_image_service = CampaignImageService(storage=campaign_storage)
+campaign_export_service = CampaignExportService(storage=campaign_storage)
 
 
 def _docs_enabled() -> bool:
@@ -155,8 +157,8 @@ def review_campaign_image(campaign_id: str, request: ImageReviewRequest) -> Imag
 
 @app.get("/genai/assets/{campaign_id}/{filename}")
 def get_campaign_image_asset(campaign_id: str, filename: str) -> FileResponse:
-    asset_path = (Path(__file__).resolve().parents[1] / "data" / "generated" / "images" / campaign_id / filename).resolve()
-    campaign_dir = (Path(__file__).resolve().parents[1] / "data" / "generated" / "images" / campaign_id).resolve()
+    asset_path = (campaign_storage.campaign_image_dir(campaign_id) / filename).resolve()
+    campaign_dir = campaign_storage.campaign_image_dir(campaign_id).resolve()
     if campaign_dir not in asset_path.parents or not asset_path.exists():
         raise HTTPException(status_code=404, detail="Image asset not found")
     media_type = "image/png" if asset_path.suffix.lower() == ".png" else "image/svg+xml"

@@ -23,5 +23,7 @@ def test_generate_and_save_campaign_brief(tmp_path: Path):
     assert manifest.campaign_id.startswith("demo-launch-")
     assert manifest.output.angles
     assert len(manifest.output.angles[0].headlines) == 5
-    assert (tmp_path / "generated" / "manifests" / f"{manifest.campaign_id}.json").exists()
-    assert (tmp_path / "generated" / "copy" / f"{manifest.campaign_id}.json").exists()
+    assert (tmp_path / "generated" / "metadata" / "campaigns.sqlite3").exists()
+    assert manifest.artifacts.manifest_path == f"campaign-record://{manifest.campaign_id}/manifest"
+    assert manifest.artifacts.copy_output_path == f"campaign-record://{manifest.campaign_id}/copy"
+    assert service.load_campaign(manifest.campaign_id) is not None

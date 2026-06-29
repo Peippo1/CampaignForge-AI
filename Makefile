@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: setup demo genai-demo genai-image-demo genai-export-demo test train evaluate api dashboard run-dashboard airflow
+.PHONY: setup demo genai-demo genai-image-demo genai-export-demo test train evaluate api dashboard run-dashboard airflow compat-check
 
 setup:
 	./setup.sh
@@ -19,6 +19,10 @@ genai-export-demo:
 
 test:
 	$(PYTHON) -m pytest tests/
+
+compat-check:
+	$(PYTHON) -m utils.runtime_baseline
+	$(PYTHON) -m pytest tests/test_runtime_baseline.py
 
 train:
 	$(PYTHON) models/train_model.py

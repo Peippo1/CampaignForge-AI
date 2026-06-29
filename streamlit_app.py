@@ -25,15 +25,17 @@ from genai.schemas import (
     ImageReviewRequest,
 )
 from genai.service import CampaignBriefService, CampaignExportService, CampaignImageService
+from genai.storage import CampaignStorage
 from utils.crm_clients import HubSpotClient, SalesforceClient
 
 
 st.set_page_config(page_title="CampaignForge AI Dashboard", layout="wide")
 st.session_state["title_rendered"] = True
 st.session_state["sidebar_initialized"] = True
-campaign_brief_service = CampaignBriefService()
-campaign_image_service = CampaignImageService()
-campaign_export_service = CampaignExportService()
+campaign_storage = CampaignStorage()
+campaign_brief_service = CampaignBriefService(storage=campaign_storage)
+campaign_image_service = CampaignImageService(storage=campaign_storage)
+campaign_export_service = CampaignExportService(storage=campaign_storage)
 
 
 def render_styles():
@@ -453,7 +455,7 @@ def render_image_generation_panel():
 
     image_columns = st.columns(2)
     for index, asset in enumerate(latest_manifest.assets):
-        image_path = Path(__file__).resolve().parent / asset.file_path
+            image_path = campaign_storage.resolve_managed_path(asset.file_path)
         with image_columns[index % 2]:
             if image_path.exists():
                 st.image(

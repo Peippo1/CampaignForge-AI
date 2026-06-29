@@ -105,6 +105,11 @@ docker compose up --build
 - Set `CAMPAIGNFORGE_LLM_PROVIDER=openai` and `OPENAI_API_KEY` to enable live LLM generation
 - Set `CAMPAIGNFORGE_IMAGE_PROVIDER=openai` and `OPENAI_API_KEY` to enable live image generation
 - `OPENAI_BASE_URL` and `OPENAI_MODEL` are optional overrides for compatible providers
+- `CAMPAIGNFORGE_STORAGE_ROOT` should point at persistent storage for hosted deployments
+- `CAMPAIGNFORGE_RETENTION_DAYS` controls how long generated campaigns and assets are retained before cleanup
+
+See `docs/DURABLE_STORAGE.md` for the storage boundary and retention design.
+See `docs/OPERATIONS_BASELINE.md` for the current runtime and observability baseline.
 
 ## Intended Deployment Use
 
