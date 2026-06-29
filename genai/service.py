@@ -8,6 +8,7 @@ import zipfile
 from genai.brief_parser import slugify_campaign_name
 from genai.copy_generator import MockCampaignGenerator, get_campaign_generator
 from genai.image_generator import MockImageGenerator, get_image_generator
+from genai.pydantic_compat import model_copy, model_to_dict, model_to_json
 from genai.schemas import (
     CampaignBrief,
     CampaignManifest,
@@ -132,7 +133,7 @@ class CampaignImageService:
             mode = "fallback-mock"
 
         relative_assets = [
-            asset.model_copy(update={"file_path": str(Path(asset.file_path).resolve().relative_to(self.storage.repo_root.resolve()))})
+            model_copy(asset, update={"file_path": self.storage.relative_path(Path(asset.file_path))})
             for asset in assets
         ]
         manifest = ImageGenerationManifest(
@@ -179,32 +180,23 @@ class CampaignExportService:
 
         image_manifest = self.storage.load_image_manifest(campaign_id)
         export_path = self.storage.export_zip_path(campaign_id)
-        prompt_payload = {
-            "campaign_id": campaign_id,
-            "angles": [
-                {
-                    "angle_id": angle.angle_id,
-                    "title": angle.title,
-                    "image_prompts": angle.image_prompts,
-                }
-                for angle in campaign.output.angles
-            ],
-        }
+        prompt_payload = self.storage.campaign_prompt_payload(campaign)
 
         with zipfile.ZipFile(export_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("brief.json", campaign.brief.model_dump_json(indent=2))
-            archive.writestr("copy.json", json.dumps(campaign.output.model_dump(mode="json"), indent=2))
+            archive.writestr("brief.json", model_to_json(campaign.brief, indent=2))
+            archive.writestr("copy.json", json.dumps(model_to_dict(campaign.output), indent=2))
             archive.writestr("prompts.json", json.dumps(prompt_payload, indent=2))
-            archive.writestr("manifest.json", campaign.model_dump_json(indent=2))
+            archive.writestr("manifest.json", model_to_json(campaign, indent=2))
 
             if image_manifest is not None:
-                archive.writestr("images/manifest.json", image_manifest.model_dump_json(indent=2))
+                archive.writestr("images/manifest.json", model_to_json(image_manifest, indent=2))
                 for asset in image_manifest.assets:
-                    asset_path = self.storage.repo_root / asset.file_path
+                    asset_path = self.storage.resolve_managed_path(asset.file_path)
                     if asset_path.exists():
                         archive.write(asset_path, arcname=f"images/{asset_path.name}")
 
-        campaign.artifacts.export_zip_path = str(export_path.relative_to(self.storage.repo_root))
+        campaign.artifacts.export_zip_path = self.storage.relative_path(export_path)
         campaign.updated_at = datetime.now(UTC).isoformat()
         self.storage.overwrite_campaign(campaign)
+        self.storage.persist_export_path(campaign_id, export_path)
         return export_path

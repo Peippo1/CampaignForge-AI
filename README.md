@@ -46,7 +46,7 @@ CampaignForge AI is designed around a simple workflow:
 - Source-first repository with generated outputs removed from version control
 - ETL scripts, model training, and model evaluation workflow
 - GenAI brief copilot package with mock-first and API-key-gated live modes
-- Optional image generation layer that saves assets and metadata per campaign
+- Durable campaign metadata storage with managed asset paths for saved images and export bundles
 - Workflow controls for campaign history, regeneration, image review, and bundle export
 - FastAPI service and Streamlit dashboard
 - CRM integration examples for Salesforce and HubSpot
@@ -62,9 +62,9 @@ CampaignForge AI is designed around a simple workflow:
 ## What’s Included
 
 - Full Python source code for ETL, model training, evaluation, API delivery, and dashboard presentation
-- GenAI brief-to-copy workflow with saved JSON outputs under `data/generated/`
-- Structured image generation folders under `data/generated/images/<campaign_id>/`
-- Exported campaign ZIP bundles under `data/generated/exports/`
+- GenAI brief-to-copy workflow with campaign records stored in SQLite-backed metadata
+- Structured image generation folders under `CAMPAIGNFORGE_STORAGE_ROOT/assets/images/<campaign_id>/`
+- Exported campaign ZIP bundles under `CAMPAIGNFORGE_STORAGE_ROOT/assets/exports/`
 - Demo data, predictable demo outputs, and Makefile shortcuts
 - FastAPI and Streamlit interfaces for technical and non-technical walkthroughs
 - Docker, Kubernetes, and Airflow assets for packaging and operations discussions
@@ -155,6 +155,8 @@ Useful companion docs:
 - `docs/LISTING_COPY.md` for repo description and marketplace copy
 - `docs/ASSET_PREP.md` for screenshots, GIFs, and listing asset planning
 - `docs/GENAI_ROADMAP.md` for the staged GenAI plan
+- `docs/DURABLE_STORAGE.md` for campaign record and asset storage decisions
+- `docs/OPERATIONS_BASELINE.md` for supported runtimes, dependency boundaries, and observability expectations
 - `QA_CHECKLIST.md` for launch verification
 - `RELEASE_NOTES.md` for the v1 sale-ready summary
 
@@ -223,11 +225,15 @@ project-root/
 - The repository currently targets Python `3.11.11` via `.python-version`.
 - Generated outputs such as model artifacts, processed data, and local runtime files are intentionally gitignored.
 - Demo outputs are collected under `demo_outputs/latest/` for predictable review.
-- Generated GenAI artifacts are saved under `data/generated/` and copied into the demo output bundle.
+- Generated GenAI artifacts use a SQLite-backed metadata store plus managed asset storage under `CAMPAIGNFORGE_STORAGE_ROOT` and are copied into the demo output bundle.
 - Streamlit now includes saved campaign history plus workflow controls for regeneration, image review, and export.
 - `streamlit_app.py` is the single supported dashboard entrypoint for demos and local runs.
 - Local secrets should be supplied through `.env` and `.streamlit/secrets.toml`; start from `.env.example` where applicable.
 - Set `CAMPAIGNFORGE_LLM_PROVIDER=openai` and `OPENAI_API_KEY` only when you want live LLM output; the local default is mock mode.
 - Set `CAMPAIGNFORGE_IMAGE_PROVIDER=openai` together with `OPENAI_API_KEY` only when you want live image output; the local default is mock SVG concepts.
+- Set `CAMPAIGNFORGE_STORAGE_ROOT` to a persistent volume or equivalent durable mount for hosted deployments.
+- Set `CAMPAIGNFORGE_RETENTION_DAYS` to control campaign asset cleanup windows.
+- Supported Python runtimes are currently `3.11` and `3.12`.
+- Run `make compat-check` to validate the baseline runtime assumptions.
 - The public GitHub repository description should match the CampaignForge AI positioning for consistency.
 - Sales assets can be organized under `docs/assets/` without changing the source layout.

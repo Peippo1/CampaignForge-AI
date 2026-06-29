@@ -34,6 +34,6 @@ def test_generate_and_save_campaign_images(tmp_path: Path):
     assert manifest.campaign_id == campaign.campaign_id
     assert len(manifest.assets) == 2
     assert manifest.assets[0].file_path.endswith(".svg")
-    image_dir = tmp_path / "data" / "generated" / "images" / campaign.campaign_id
-    assert (image_dir / "manifest.json").exists()
+    image_dir = tmp_path / "data" / "generated" / "assets" / "images" / campaign.campaign_id
     assert list(image_dir.glob("*.svg"))
+    assert image_service.load_manifest(campaign.campaign_id) is not None
