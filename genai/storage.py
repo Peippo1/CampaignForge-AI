@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -41,12 +42,19 @@ class CampaignStorage:
         connection.row_factory = sqlite3.Row
         return connection
 
+    def _ensure_column(self, connection: sqlite3.Connection, table_name: str, column_name: str, column_sql: str) -> None:
+        columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table_name})")}
+        if column_name not in columns:
+            connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_sql}")
+
     def _initialize(self) -> None:
         with self._connect() as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS campaigns (
                     campaign_id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL DEFAULT 'local-demo',
+                    created_by TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT,
                     provider TEXT NOT NULL,
@@ -58,6 +66,8 @@ class CampaignStorage:
                 )
                 """
             )
+            self._ensure_column(connection, "campaigns", "workspace_id", "workspace_id TEXT NOT NULL DEFAULT 'local-demo'")
+            self._ensure_column(connection, "campaigns", "created_by", "created_by TEXT")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS image_manifests (
@@ -74,6 +84,44 @@ class CampaignStorage:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS workspaces (
+                    workspace_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    owner_user_id TEXT NOT NULL,
+                    request_limit_per_hour INTEGER NOT NULL DEFAULT 60,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS workspace_api_keys (
+                    key_hash TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(workspace_id) REFERENCES workspaces(workspace_id) ON DELETE CASCADE
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS audit_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    workspace_id TEXT NOT NULL,
+                    user_id TEXT,
+                    action TEXT NOT NULL,
+                    campaign_id TEXT,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(workspace_id) REFERENCES workspaces(workspace_id) ON DELETE CASCADE
+                )
+                """
+            )
             connection.commit()
 
     def _retention_expires_at(self, created_at: str) -> str:
@@ -84,10 +132,15 @@ class CampaignStorage:
     def _campaign_storage_uri(self, campaign_id: str, document: str) -> str:
         return f"campaign-record://{campaign_id}/{document}"
 
+    def _hash_api_key(self, api_key: str) -> str:
+        return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+
     def _campaign_from_row(self, row: sqlite3.Row) -> CampaignManifest:
         campaign_id = row["campaign_id"]
         return CampaignManifest(
             campaign_id=campaign_id,
+            workspace_id=row["workspace_id"],
+            created_by=row["created_by"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             provider=row["provider"],
@@ -116,13 +169,75 @@ class CampaignStorage:
                 "style": row["style"],
                 "prompt": row["prompt"],
                 "assets": json.loads(row["assets_json"]),
-            }
+            },
         )
 
-    def save(self, campaign_id: str, provider: str, mode: str, brief, output: CampaignOutput) -> CampaignManifest:
+    def create_workspace(
+        self,
+        *,
+        workspace_id: str,
+        name: str,
+        owner_user_id: str,
+        api_key: str,
+        request_limit_per_hour: int = 60,
+        role: str = "admin",
+    ) -> None:
+        created_at = datetime.now(UTC).isoformat()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO workspaces (
+                    workspace_id, name, owner_user_id, request_limit_per_hour, created_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (workspace_id, name, owner_user_id, request_limit_per_hour, created_at),
+            )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO workspace_api_keys (
+                    key_hash, workspace_id, user_id, role, active, created_at
+                ) VALUES (?, ?, ?, ?, 1, ?)
+                """,
+                (self._hash_api_key(api_key), workspace_id, owner_user_id, role, created_at),
+            )
+            connection.commit()
+
+    def resolve_api_key(self, api_key: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT keys.workspace_id, keys.user_id, keys.role, workspaces.request_limit_per_hour
+                FROM workspace_api_keys AS keys
+                JOIN workspaces ON workspaces.workspace_id = keys.workspace_id
+                WHERE keys.key_hash = ? AND keys.active = 1
+                """,
+                (self._hash_api_key(api_key),),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "workspace_id": row["workspace_id"],
+            "user_id": row["user_id"],
+            "role": row["role"],
+            "request_limit_per_hour": row["request_limit_per_hour"],
+        }
+
+    def save(
+        self,
+        campaign_id: str,
+        provider: str,
+        mode: str,
+        brief,
+        output: CampaignOutput,
+        *,
+        workspace_id: str,
+        actor_user_id: str,
+    ) -> CampaignManifest:
         created_at = datetime.now(UTC).isoformat()
         manifest = CampaignManifest(
             campaign_id=campaign_id,
+            workspace_id=workspace_id,
+            created_by=actor_user_id,
             created_at=created_at,
             updated_at=created_at,
             provider=provider,
@@ -140,12 +255,14 @@ class CampaignStorage:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO campaigns (
-                    campaign_id, created_at, updated_at, provider, mode,
+                    campaign_id, workspace_id, created_by, created_at, updated_at, provider, mode,
                     brief_json, output_json, export_zip_path, retention_expires_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     campaign_id,
+                    workspace_id,
+                    actor_user_id,
                     created_at,
                     created_at,
                     provider,
@@ -159,21 +276,27 @@ class CampaignStorage:
             connection.commit()
         return manifest
 
-    def load(self, campaign_id: str) -> CampaignManifest | None:
+    def load(self, campaign_id: str, *, workspace_id: str | None = None) -> CampaignManifest | None:
+        query = "SELECT * FROM campaigns WHERE campaign_id = ?"
+        params: list[Any] = [campaign_id]
+        if workspace_id is not None:
+            query += " AND workspace_id = ?"
+            params.append(workspace_id)
         with self._connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM campaigns WHERE campaign_id = ?",
-                (campaign_id,),
-            ).fetchone()
+            row = connection.execute(query, params).fetchone()
         if row is None:
             return None
         return self._campaign_from_row(row)
 
-    def list_campaigns(self) -> list[CampaignManifest]:
+    def list_campaigns(self, *, workspace_id: str | None = None) -> list[CampaignManifest]:
+        query = "SELECT * FROM campaigns"
+        params: list[Any] = []
+        if workspace_id is not None:
+            query += " WHERE workspace_id = ?"
+            params.append(workspace_id)
+        query += " ORDER BY created_at DESC"
         with self._connect() as connection:
-            rows = connection.execute(
-                "SELECT * FROM campaigns ORDER BY created_at DESC"
-            ).fetchall()
+            rows = connection.execute(query, params).fetchall()
         return [self._campaign_from_row(row) for row in rows]
 
     def campaign_image_dir(self, campaign_id: str) -> Path:
@@ -203,12 +326,19 @@ class CampaignStorage:
             connection.commit()
         return manifest
 
-    def load_image_manifest(self, campaign_id: str) -> ImageGenerationManifest | None:
+    def load_image_manifest(self, campaign_id: str, *, workspace_id: str | None = None) -> ImageGenerationManifest | None:
+        query = """
+            SELECT image_manifests.*
+            FROM image_manifests
+            JOIN campaigns ON campaigns.campaign_id = image_manifests.campaign_id
+            WHERE image_manifests.campaign_id = ?
+        """
+        params: list[Any] = [campaign_id]
+        if workspace_id is not None:
+            query += " AND campaigns.workspace_id = ?"
+            params.append(workspace_id)
         with self._connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM image_manifests WHERE campaign_id = ?",
-                (campaign_id,),
-            ).fetchone()
+            row = connection.execute(query, params).fetchone()
         if row is None:
             return None
         return self._image_manifest_from_row(row)
@@ -219,7 +349,7 @@ class CampaignStorage:
                 """
                 UPDATE campaigns
                 SET updated_at = ?, provider = ?, mode = ?, brief_json = ?, output_json = ?, export_zip_path = ?
-                WHERE campaign_id = ?
+                WHERE campaign_id = ? AND workspace_id = ?
                 """,
                 (
                     manifest.updated_at,
@@ -229,6 +359,7 @@ class CampaignStorage:
                     model_to_json(manifest.output),
                     manifest.artifacts.export_zip_path,
                     manifest.campaign_id,
+                    manifest.workspace_id,
                 ),
             )
             connection.commit()
@@ -243,17 +374,65 @@ class CampaignStorage:
     def resolve_managed_path(self, relative_path: str) -> Path:
         return (self.root / relative_path).resolve()
 
-    def persist_export_path(self, campaign_id: str, export_zip_path: Path) -> None:
+    def persist_export_path(self, campaign_id: str, export_zip_path: Path, *, workspace_id: str) -> None:
         with self._connect() as connection:
             connection.execute(
-                "UPDATE campaigns SET export_zip_path = ?, updated_at = ? WHERE campaign_id = ?",
+                "UPDATE campaigns SET export_zip_path = ?, updated_at = ? WHERE campaign_id = ? AND workspace_id = ?",
                 (
                     self.relative_path(export_zip_path),
                     datetime.now(UTC).isoformat(),
                     campaign_id,
+                    workspace_id,
                 ),
             )
             connection.commit()
+
+    def record_audit_event(
+        self,
+        *,
+        workspace_id: str,
+        user_id: str | None,
+        action: str,
+        status: str,
+        campaign_id: str | None = None,
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO audit_events (workspace_id, user_id, action, campaign_id, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    workspace_id,
+                    user_id,
+                    action,
+                    campaign_id,
+                    status,
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+            connection.commit()
+
+    def count_audit_events(
+        self,
+        *,
+        workspace_id: str,
+        action: str,
+        created_after: datetime,
+        status: str | None = None,
+    ) -> int:
+        query = """
+            SELECT COUNT(*) AS count
+            FROM audit_events
+            WHERE workspace_id = ? AND action = ? AND created_at >= ?
+        """
+        params: list[Any] = [workspace_id, action, created_after.isoformat()]
+        if status is not None:
+            query += " AND status = ?"
+            params.append(status)
+        with self._connect() as connection:
+            row = connection.execute(query, params).fetchone()
+        return int(row["count"]) if row else 0
 
     def cleanup_expired_campaigns(self, now: datetime | None = None) -> list[str]:
         cutoff = (now or datetime.now(UTC)).isoformat()

@@ -107,9 +107,14 @@ docker compose up --build
 - `OPENAI_BASE_URL` and `OPENAI_MODEL` are optional overrides for compatible providers
 - `CAMPAIGNFORGE_STORAGE_ROOT` should point at persistent storage for hosted deployments
 - `CAMPAIGNFORGE_RETENTION_DAYS` controls how long generated campaigns and assets are retained before cleanup
+- `CAMPAIGNFORGE_AUTH_MODE=workspace_api_key` enables hosted API protection
+- `CAMPAIGNFORGE_DASHBOARD_AUTH_MODE=password` enables dashboard sign-in
+- `CAMPAIGNFORGE_DEFAULT_*` variables seed the starter hosted workspace and API key
+- `CAMPAIGNFORGE_DASHBOARD_USERNAME` and `CAMPAIGNFORGE_DASHBOARD_PASSWORD` protect the dashboard in hosted mode
 
 See `docs/DURABLE_STORAGE.md` for the storage boundary and retention design.
 See `docs/OPERATIONS_BASELINE.md` for the current runtime and observability baseline.
+See `docs/HOSTED_AUTH.md` for the workspace/auth model and hosted-vs-demo guidance.
 
 ## Intended Deployment Use
 

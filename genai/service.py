@@ -24,7 +24,13 @@ class CampaignBriefService:
     def __init__(self, storage: CampaignStorage | None = None):
         self.storage = storage or CampaignStorage()
 
-    def generate_and_save(self, brief: CampaignBrief) -> CampaignManifest:
+    def generate_and_save(
+        self,
+        brief: CampaignBrief,
+        *,
+        workspace_id: str = "local-demo",
+        actor_user_id: str = "local-operator",
+    ) -> CampaignManifest:
         generator = get_campaign_generator()
         try:
             output = generator.generate(brief)
@@ -39,16 +45,30 @@ class CampaignBriefService:
         base_name = brief.campaign_name or brief.product_name or "campaignforge-brief"
         timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         campaign_id = f"{slugify_campaign_name(base_name)}-{timestamp}"
-        return self.storage.save(campaign_id, provider_name, mode, brief, output)
+        return self.storage.save(
+            campaign_id,
+            provider_name,
+            mode,
+            brief,
+            output,
+            workspace_id=workspace_id,
+            actor_user_id=actor_user_id,
+        )
 
-    def load_campaign(self, campaign_id: str) -> CampaignManifest | None:
-        return self.storage.load(campaign_id)
+    def load_campaign(self, campaign_id: str, *, workspace_id: str | None = None) -> CampaignManifest | None:
+        return self.storage.load(campaign_id, workspace_id=workspace_id)
 
-    def list_campaigns(self) -> list[CampaignManifest]:
-        return self.storage.list_campaigns()
+    def list_campaigns(self, *, workspace_id: str | None = None) -> list[CampaignManifest]:
+        return self.storage.list_campaigns(workspace_id=workspace_id)
 
-    def regenerate(self, campaign_id: str, request: CampaignRegenerationRequest | None = None) -> CampaignManifest:
-        existing = self.storage.load(campaign_id)
+    def regenerate(
+        self,
+        campaign_id: str,
+        request: CampaignRegenerationRequest | None = None,
+        *,
+        workspace_id: str | None = None,
+    ) -> CampaignManifest:
+        existing = self.storage.load(campaign_id, workspace_id=workspace_id)
         if existing is None:
             raise ValueError("Campaign output not found")
 
@@ -90,8 +110,13 @@ class CampaignImageService:
     def __init__(self, storage: CampaignStorage | None = None):
         self.storage = storage or CampaignStorage()
 
-    def generate_and_save(self, request: ImageGenerationRequest) -> ImageGenerationManifest:
-        campaign = self.storage.load(request.campaign_id)
+    def generate_and_save(
+        self,
+        request: ImageGenerationRequest,
+        *,
+        workspace_id: str | None = None,
+    ) -> ImageGenerationManifest:
+        campaign = self.storage.load(request.campaign_id, workspace_id=workspace_id)
         if campaign is None:
             raise ValueError("Campaign output not found")
 
@@ -148,11 +173,17 @@ class CampaignImageService:
         )
         return self.storage.save_image_manifest(manifest)
 
-    def load_manifest(self, campaign_id: str) -> ImageGenerationManifest | None:
-        return self.storage.load_image_manifest(campaign_id)
+    def load_manifest(self, campaign_id: str, *, workspace_id: str | None = None) -> ImageGenerationManifest | None:
+        return self.storage.load_image_manifest(campaign_id, workspace_id=workspace_id)
 
-    def review_asset(self, campaign_id: str, request: ImageReviewRequest) -> ImageGenerationManifest:
-        manifest = self.storage.load_image_manifest(campaign_id)
+    def review_asset(
+        self,
+        campaign_id: str,
+        request: ImageReviewRequest,
+        *,
+        workspace_id: str | None = None,
+    ) -> ImageGenerationManifest:
+        manifest = self.storage.load_image_manifest(campaign_id, workspace_id=workspace_id)
         if manifest is None:
             raise ValueError("Campaign image output not found")
 
@@ -173,12 +204,12 @@ class CampaignExportService:
     def __init__(self, storage: CampaignStorage | None = None):
         self.storage = storage or CampaignStorage()
 
-    def export_campaign(self, campaign_id: str) -> Path:
-        campaign = self.storage.load(campaign_id)
+    def export_campaign(self, campaign_id: str, *, workspace_id: str | None = None) -> Path:
+        campaign = self.storage.load(campaign_id, workspace_id=workspace_id)
         if campaign is None:
             raise ValueError("Campaign output not found")
 
-        image_manifest = self.storage.load_image_manifest(campaign_id)
+        image_manifest = self.storage.load_image_manifest(campaign_id, workspace_id=workspace_id)
         export_path = self.storage.export_zip_path(campaign_id)
         prompt_payload = self.storage.campaign_prompt_payload(campaign)
 
@@ -198,5 +229,5 @@ class CampaignExportService:
         campaign.artifacts.export_zip_path = self.storage.relative_path(export_path)
         campaign.updated_at = datetime.now(UTC).isoformat()
         self.storage.overwrite_campaign(campaign)
-        self.storage.persist_export_path(campaign_id, export_path)
+        self.storage.persist_export_path(campaign_id, export_path, workspace_id=campaign.workspace_id or "local-demo")
         return export_path
