@@ -18,6 +18,7 @@ except ModuleNotFoundError:
     st.stop()
 
 from airflow.scripts.mysql_utils import get_customers_data
+from genai.auth import AuthManager, AuthenticationError
 from genai.schemas import (
     CampaignBrief,
     CampaignRegenerationRequest,
@@ -33,6 +34,7 @@ st.set_page_config(page_title="CampaignForge AI Dashboard", layout="wide")
 st.session_state["title_rendered"] = True
 st.session_state["sidebar_initialized"] = True
 campaign_storage = CampaignStorage()
+auth_manager = AuthManager(campaign_storage)
 campaign_brief_service = CampaignBriefService(storage=campaign_storage)
 campaign_image_service = CampaignImageService(storage=campaign_storage)
 campaign_export_service = CampaignExportService(storage=campaign_storage)
@@ -101,6 +103,40 @@ def load_customer_data():
         return get_customers_data(), None
     except Exception as exc:
         return None, exc
+
+
+def current_dashboard_principal():
+    principal = st.session_state.get("dashboard_principal")
+    if principal:
+        return principal
+    return auth_manager.demo_principal()
+
+
+def require_dashboard_access():
+    if not auth_manager.is_dashboard_auth_enabled():
+        st.session_state["dashboard_principal"] = auth_manager.demo_principal()
+        return
+
+    if st.session_state.get("dashboard_principal"):
+        return
+
+    st.markdown("---")
+    st.subheader("Hosted dashboard sign in")
+    with st.form("dashboard-login"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Sign in", type="primary")
+
+    if submitted:
+        try:
+            st.session_state["dashboard_principal"] = auth_manager.authenticate_dashboard(
+                username,
+                password,
+            )
+            st.rerun()
+        except AuthenticationError as exc:
+            st.error(str(exc))
+    st.stop()
 
 
 def campaign_history_label(campaign) -> str:
@@ -325,7 +361,12 @@ def render_genai_panel():
             "avoid hard performance promises and misleading before-and-after language"
         ],
     )
-    manifest = campaign_brief_service.generate_and_save(brief_model)
+    principal = current_dashboard_principal()
+    manifest = campaign_brief_service.generate_and_save(
+        brief_model,
+        workspace_id=principal.workspace_id,
+        actor_user_id=principal.user_id,
+    )
     st.success(f"Generated campaign output: {manifest.campaign_id} ({manifest.mode})")
 
     display_campaign_details(manifest)
@@ -341,7 +382,8 @@ def render_campaign_history_panel() -> Optional[object]:
     st.markdown("---")
     st.markdown('<div class="section-label">Campaign History</div>', unsafe_allow_html=True)
     st.subheader("Reload, regenerate, and export saved campaigns")
-    campaigns = campaign_brief_service.list_campaigns()
+    principal = current_dashboard_principal()
+    campaigns = campaign_brief_service.list_campaigns(workspace_id=principal.workspace_id)
     if not campaigns:
         st.info("No saved campaigns yet.")
         return None
@@ -361,6 +403,7 @@ def render_campaign_history_panel() -> Optional[object]:
             selected_campaign = campaign_brief_service.regenerate(
                 selected_campaign.campaign_id,
                 CampaignRegenerationRequest(scope="copy"),
+                workspace_id=principal.workspace_id,
             )
             st.success("Campaign copy regenerated.")
     with action_col2:
@@ -368,11 +411,15 @@ def render_campaign_history_panel() -> Optional[object]:
             selected_campaign = campaign_brief_service.regenerate(
                 selected_campaign.campaign_id,
                 CampaignRegenerationRequest(scope="prompts"),
+                workspace_id=principal.workspace_id,
             )
             st.success("Campaign prompts regenerated.")
     with action_col3:
         if st.button("Build export ZIP", key=f"build-export-{selected_campaign.campaign_id}"):
-            export_path = campaign_export_service.export_campaign(selected_campaign.campaign_id)
+            export_path = campaign_export_service.export_campaign(
+                selected_campaign.campaign_id,
+                workspace_id=principal.workspace_id,
+            )
             st.session_state[f"export-path-{selected_campaign.campaign_id}"] = str(export_path)
             st.success(f"Built export bundle: {export_path.name}")
 
@@ -397,7 +444,8 @@ def render_image_generation_panel():
     st.markdown("---")
     st.markdown('<div class="section-label">Image Concepts</div>', unsafe_allow_html=True)
     st.subheader("Generate concept images from saved campaign prompts")
-    campaigns = campaign_brief_service.list_campaigns()
+    principal = current_dashboard_principal()
+    campaigns = campaign_brief_service.list_campaigns(workspace_id=principal.workspace_id)
     if not campaigns:
         st.info("Generate a campaign brief first so image prompts are available.")
         return
@@ -429,7 +477,8 @@ def render_image_generation_panel():
                     prompt=selected_prompt,
                     style=style,
                     count=count,
-                )
+                ),
+                workspace_id=principal.workspace_id,
             )
             st.session_state["latest_image_manifest_id"] = manifest.campaign_id
             st.success(
@@ -437,7 +486,10 @@ def render_image_generation_panel():
                 f"{manifest.campaign_id} ({manifest.mode})."
             )
 
-    latest_manifest = campaign_image_service.load_manifest(selected_campaign.campaign_id)
+    latest_manifest = campaign_image_service.load_manifest(
+        selected_campaign.campaign_id,
+        workspace_id=principal.workspace_id,
+    )
     with col2:
         st.caption(
             "Mock SVG concepts are used locally by default. Set image provider "
@@ -455,7 +507,7 @@ def render_image_generation_panel():
 
     image_columns = st.columns(2)
     for index, asset in enumerate(latest_manifest.assets):
-            image_path = campaign_storage.resolve_managed_path(asset.file_path)
+        image_path = campaign_storage.resolve_managed_path(asset.file_path)
         with image_columns[index % 2]:
             if image_path.exists():
                 st.image(
@@ -473,6 +525,7 @@ def render_image_generation_panel():
                     latest_manifest = campaign_image_service.review_asset(
                         selected_campaign.campaign_id,
                         ImageReviewRequest(image_id=asset.image_id, approval_status="approved"),
+                        workspace_id=principal.workspace_id,
                     )
                     st.rerun()
             with approval_cols[1]:
@@ -480,6 +533,7 @@ def render_image_generation_panel():
                     latest_manifest = campaign_image_service.review_asset(
                         selected_campaign.campaign_id,
                         ImageReviewRequest(image_id=asset.image_id, approval_status="rejected"),
+                        workspace_id=principal.workspace_id,
                     )
                     st.rerun()
             with approval_cols[2]:
@@ -487,11 +541,13 @@ def render_image_generation_panel():
                     latest_manifest = campaign_image_service.review_asset(
                         selected_campaign.campaign_id,
                         ImageReviewRequest(image_id=asset.image_id, approval_status="pending"),
+                        workspace_id=principal.workspace_id,
                     )
                     st.rerun()
 
 
 def main():
+    require_dashboard_access()
     render_styles()
     crm_provider, dry_run = render_sidebar()
     dataframe, load_error = load_customer_data()

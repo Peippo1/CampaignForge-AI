@@ -12,6 +12,12 @@ from genai.storage import CampaignStorage
 
 def test_campaign_regeneration_and_export(tmp_path: Path):
     storage = CampaignStorage(root=tmp_path / "data" / "generated")
+    storage.create_workspace(
+        workspace_id="workspace-a",
+        name="Workspace A",
+        owner_user_id="user-a",
+        api_key="key-a",
+    )
     brief_service = CampaignBriefService(storage=storage)
     image_service = CampaignImageService(storage=storage)
     export_service = CampaignExportService(storage=storage)
@@ -24,12 +30,15 @@ def test_campaign_regeneration_and_export(tmp_path: Path):
                 "Create a reusable campaign workflow with copy, prompts, "
                 "concept images, and export support."
             ),
-        )
+        ),
+        workspace_id="workspace-a",
+        actor_user_id="user-a",
     )
 
     regenerated = brief_service.regenerate(
         campaign.campaign_id,
         CampaignRegenerationRequest(scope="copy"),
+        workspace_id="workspace-a",
     )
     assert regenerated.updated_at is not None
 
@@ -38,14 +47,16 @@ def test_campaign_regeneration_and_export(tmp_path: Path):
             campaign_id=campaign.campaign_id,
             angle_id=campaign.output.angles[0].angle_id,
             count=1,
-        )
+        ),
+        workspace_id="workspace-a",
     )
     reviewed = image_service.review_asset(
         campaign.campaign_id,
         ImageReviewRequest(image_id=image_manifest.assets[0].image_id, approval_status="approved"),
+        workspace_id="workspace-a",
     )
     assert reviewed.assets[0].approval_status == "approved"
 
-    export_path = export_service.export_campaign(campaign.campaign_id)
+    export_path = export_service.export_campaign(campaign.campaign_id, workspace_id="workspace-a")
     assert export_path.exists()
     assert export_path.suffix == ".zip"

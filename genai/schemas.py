@@ -55,6 +55,8 @@ class SavedArtifact(BaseModel):
 
 class CampaignManifest(BaseModel):
     campaign_id: str
+    workspace_id: Optional[str] = None
+    created_by: Optional[str] = None
     created_at: str
     updated_at: Optional[str] = None
     provider: str

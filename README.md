@@ -157,6 +157,7 @@ Useful companion docs:
 - `docs/GENAI_ROADMAP.md` for the staged GenAI plan
 - `docs/DURABLE_STORAGE.md` for campaign record and asset storage decisions
 - `docs/OPERATIONS_BASELINE.md` for supported runtimes, dependency boundaries, and observability expectations
+- `docs/HOSTED_AUTH.md` for the current workspace/auth model and hosted-vs-demo posture
 - `QA_CHECKLIST.md` for launch verification
 - `RELEASE_NOTES.md` for the v1 sale-ready summary
 
@@ -235,5 +236,7 @@ project-root/
 - Set `CAMPAIGNFORGE_RETENTION_DAYS` to control campaign asset cleanup windows.
 - Supported Python runtimes are currently `3.11` and `3.12`.
 - Run `make compat-check` to validate the baseline runtime assumptions.
+- Use `CAMPAIGNFORGE_AUTH_MODE=workspace_api_key` for hosted API protection and `disabled` for local demo/code-asset mode.
+- Use `CAMPAIGNFORGE_DASHBOARD_AUTH_MODE=password` to protect the Streamlit dashboard in hosted mode.
 - The public GitHub repository description should match the CampaignForge AI positioning for consistency.
 - Sales assets can be organized under `docs/assets/` without changing the source layout.

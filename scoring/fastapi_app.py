@@ -3,9 +3,10 @@ from typing import List, Optional
 import os
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 
+from genai.auth import AuthManager, AuthenticationError, UsageLimitExceededError, WorkspacePrincipal
 from genai.schemas import (
     CampaignBrief,
     CampaignManifest,
@@ -18,29 +19,13 @@ from genai.service import CampaignBriefService, CampaignExportService, CampaignI
 from genai.storage import CampaignStorage
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "clean_marketing.csv"
-campaign_storage = CampaignStorage()
-campaign_brief_service = CampaignBriefService(storage=campaign_storage)
-campaign_image_service = CampaignImageService(storage=campaign_storage)
-campaign_export_service = CampaignExportService(storage=campaign_storage)
 
 
 def _docs_enabled() -> bool:
     return os.getenv("FASTAPI_EXPOSE_DOCS", "").lower() in {"1", "true", "yes"}
 
 
-app = FastAPI(
-    title="CampaignForge AI API",
-    docs_url="/docs" if _docs_enabled() else None,
-    redoc_url="/redoc" if _docs_enabled() else None,
-    openapi_url="/openapi.json" if _docs_enabled() else None,
-)
-
-
-def _init_tracing() -> Optional[str]:
-    """
-    Initialize OpenTelemetry tracing if explicitly enabled.
-    Safe no-op when OTEL_ENABLED is not set.
-    """
+def _init_tracing(app: FastAPI) -> Optional[str]:
     if os.getenv("OTEL_ENABLED", "").lower() not in {"1", "true", "yes"}:
         return None
 
@@ -64,111 +49,239 @@ def _init_tracing() -> Optional[str]:
     return endpoint
 
 
-_init_tracing()
+def create_app(
+    *,
+    storage: CampaignStorage | None = None,
+    auth_manager: AuthManager | None = None,
+) -> FastAPI:
+    campaign_storage = storage or CampaignStorage()
+    auth = auth_manager or AuthManager(campaign_storage)
+    campaign_brief_service = CampaignBriefService(storage=campaign_storage)
+    campaign_image_service = CampaignImageService(storage=campaign_storage)
+    campaign_export_service = CampaignExportService(storage=campaign_storage)
 
+    app = FastAPI(
+        title="CampaignForge AI API",
+        docs_url="/docs" if _docs_enabled() else None,
+        redoc_url="/redoc" if _docs_enabled() else None,
+        openapi_url="/openapi.json" if _docs_enabled() else None,
+    )
 
-@app.middleware("http")
-async def add_security_headers(request, call_next):
-    response = await call_next(request)
-    response.headers["Cache-Control"] = "no-store"
-    response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    return response
+    _init_tracing(app)
 
+    async def require_principal(
+        x_campaignforge_api_key: str | None = Header(default=None),
+        authorization: str | None = Header(default=None),
+    ) -> WorkspacePrincipal:
+        api_key = x_campaignforge_api_key
+        if not api_key and authorization and authorization.lower().startswith("bearer "):
+            api_key = authorization.split(" ", 1)[1]
+        try:
+            return auth.authenticate_api_key(api_key)
+        except AuthenticationError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
 
-@app.get("/health")
-def health_check(response: Response) -> dict:
-    """Simple health endpoint for liveness probes."""
-    response.headers["Cache-Control"] = "no-store"
-    return {"status": "ok"}
-
-
-@app.get("/customers")
-def list_customers(limit: int = Query(default=10, ge=1, le=100)) -> List[dict]:
-    """
-    Return a lightweight customer listing for UI smoke tests.
-    Falls back to a few synthetic rows if the local data file is missing.
-    """
-    if DATA_PATH.exists():
-        df = pd.read_csv(DATA_PATH).reset_index(drop=True)
-        df.insert(0, "customer_id", df.index + 1)
-        rows = df.head(limit)
-    else:
-        rows = pd.DataFrame(
-            [
-                {"customer_id": 1, "Income": 58000, "Recency": 10},
-                {"customer_id": 2, "Income": 42000, "Recency": 24},
-            ]
+    def _record_success(principal: WorkspacePrincipal, action: str, campaign_id: str | None = None) -> None:
+        campaign_storage.record_audit_event(
+            workspace_id=principal.workspace_id,
+            user_id=principal.user_id,
+            action=action,
+            campaign_id=campaign_id,
+            status="success",
         )
-    return rows.to_dict(orient="records")
+
+    def _record_failure(principal: WorkspacePrincipal, action: str, campaign_id: str | None = None) -> None:
+        campaign_storage.record_audit_event(
+            workspace_id=principal.workspace_id,
+            user_id=principal.user_id,
+            action=action,
+            campaign_id=campaign_id,
+            status="failure",
+        )
+
+    def _enforce_usage(principal: WorkspacePrincipal, action: str) -> None:
+        try:
+            auth.enforce_usage_limit(principal, action)
+        except UsageLimitExceededError as exc:
+            _record_failure(principal, action)
+            raise HTTPException(status_code=429, detail=str(exc)) from exc
+
+    @app.middleware("http")
+    async def add_security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
+
+    @app.get("/health")
+    def health_check(response: Response) -> dict:
+        response.headers["Cache-Control"] = "no-store"
+        return {"status": "ok"}
+
+    @app.get("/customers")
+    def list_customers(
+        limit: int = Query(default=10, ge=1, le=100),
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> List[dict]:
+        if DATA_PATH.exists():
+            df = pd.read_csv(DATA_PATH).reset_index(drop=True)
+            df.insert(0, "customer_id", df.index + 1)
+            rows = df.head(limit)
+        else:
+            rows = pd.DataFrame(
+                [
+                    {"customer_id": 1, "Income": 58000, "Recency": 10},
+                    {"customer_id": 2, "Income": 42000, "Recency": 24},
+                ]
+            )
+        _record_success(principal, "customers:list")
+        return rows.to_dict(orient="records")
+
+    @app.post("/genai/brief", response_model=CampaignManifest)
+    def generate_campaign_brief(
+        brief: CampaignBrief,
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> CampaignManifest:
+        action = "campaign:create"
+        _enforce_usage(principal, action)
+        manifest = campaign_brief_service.generate_and_save(
+            brief,
+            workspace_id=principal.workspace_id,
+            actor_user_id=principal.user_id,
+        )
+        _record_success(principal, action, manifest.campaign_id)
+        return manifest
+
+    @app.get("/genai/campaigns/{campaign_id}", response_model=CampaignManifest)
+    def get_campaign_output(
+        campaign_id: str,
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> CampaignManifest:
+        manifest = campaign_brief_service.load_campaign(campaign_id, workspace_id=principal.workspace_id)
+        if manifest is None:
+            _record_failure(principal, "campaign:get", campaign_id)
+            raise HTTPException(status_code=404, detail="Campaign output not found")
+        _record_success(principal, "campaign:get", campaign_id)
+        return manifest
+
+    @app.get("/genai/campaigns", response_model=List[CampaignManifest])
+    def list_campaign_outputs(
+        limit: int = Query(default=10, ge=1, le=50),
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> List[CampaignManifest]:
+        payload = campaign_brief_service.list_campaigns(workspace_id=principal.workspace_id)[:limit]
+        _record_success(principal, "campaign:list")
+        return payload
+
+    @app.post("/genai/images", response_model=ImageGenerationManifest)
+    def generate_campaign_images(
+        request: ImageGenerationRequest,
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> ImageGenerationManifest:
+        action = "image:create"
+        _enforce_usage(principal, action)
+        try:
+            manifest = campaign_image_service.generate_and_save(request, workspace_id=principal.workspace_id)
+        except ValueError as exc:
+            _record_failure(principal, action, request.campaign_id)
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        _record_success(principal, action, request.campaign_id)
+        return manifest
+
+    @app.post("/genai/campaigns/{campaign_id}/regenerate", response_model=CampaignManifest)
+    def regenerate_campaign_output(
+        campaign_id: str,
+        request: CampaignRegenerationRequest,
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> CampaignManifest:
+        action = "campaign:regenerate"
+        _enforce_usage(principal, action)
+        try:
+            manifest = campaign_brief_service.regenerate(
+                campaign_id,
+                request,
+                workspace_id=principal.workspace_id,
+            )
+        except ValueError as exc:
+            _record_failure(principal, action, campaign_id)
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        _record_success(principal, action, campaign_id)
+        return manifest
+
+    @app.get("/genai/campaigns/{campaign_id}/images", response_model=ImageGenerationManifest)
+    def get_campaign_images(
+        campaign_id: str,
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> ImageGenerationManifest:
+        manifest = campaign_image_service.load_manifest(campaign_id, workspace_id=principal.workspace_id)
+        if manifest is None:
+            _record_failure(principal, "image:get", campaign_id)
+            raise HTTPException(status_code=404, detail="Campaign image output not found")
+        _record_success(principal, "image:get", campaign_id)
+        return manifest
+
+    @app.post("/genai/campaigns/{campaign_id}/images/review", response_model=ImageGenerationManifest)
+    def review_campaign_image(
+        campaign_id: str,
+        request: ImageReviewRequest,
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> ImageGenerationManifest:
+        action = "image:review"
+        _enforce_usage(principal, action)
+        try:
+            manifest = campaign_image_service.review_asset(
+                campaign_id,
+                request,
+                workspace_id=principal.workspace_id,
+            )
+        except ValueError as exc:
+            _record_failure(principal, action, campaign_id)
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        _record_success(principal, action, campaign_id)
+        return manifest
+
+    @app.get("/genai/assets/{campaign_id}/{filename}")
+    def get_campaign_image_asset(
+        campaign_id: str,
+        filename: str,
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> FileResponse:
+        manifest = campaign_image_service.load_manifest(campaign_id, workspace_id=principal.workspace_id)
+        if manifest is None:
+            _record_failure(principal, "image:asset:get", campaign_id)
+            raise HTTPException(status_code=404, detail="Image asset not found")
+        asset_path = (campaign_storage.campaign_image_dir(campaign_id) / filename).resolve()
+        campaign_dir = campaign_storage.campaign_image_dir(campaign_id).resolve()
+        if campaign_dir not in asset_path.parents or not asset_path.exists():
+            _record_failure(principal, "image:asset:get", campaign_id)
+            raise HTTPException(status_code=404, detail="Image asset not found")
+        _record_success(principal, "image:asset:get", campaign_id)
+        media_type = "image/png" if asset_path.suffix.lower() == ".png" else "image/svg+xml"
+        return FileResponse(asset_path, media_type=media_type)
+
+    @app.get("/genai/campaigns/{campaign_id}/export")
+    def export_campaign_bundle(
+        campaign_id: str,
+        principal: WorkspacePrincipal = Depends(require_principal),
+    ) -> FileResponse:
+        action = "campaign:export"
+        _enforce_usage(principal, action)
+        try:
+            export_path = campaign_export_service.export_campaign(
+                campaign_id,
+                workspace_id=principal.workspace_id,
+            )
+        except ValueError as exc:
+            _record_failure(principal, action, campaign_id)
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        _record_success(principal, action, campaign_id)
+        return FileResponse(export_path, media_type="application/zip", filename=export_path.name)
+
+    app.state.campaign_storage = campaign_storage
+    app.state.auth_manager = auth
+    return app
 
 
-@app.post("/genai/brief", response_model=CampaignManifest)
-def generate_campaign_brief(brief: CampaignBrief) -> CampaignManifest:
-    """Generate and persist a structured campaign brief output."""
-    return campaign_brief_service.generate_and_save(brief)
-
-
-@app.get("/genai/campaigns/{campaign_id}", response_model=CampaignManifest)
-def get_campaign_output(campaign_id: str) -> CampaignManifest:
-    manifest = campaign_brief_service.load_campaign(campaign_id)
-    if manifest is None:
-        raise HTTPException(status_code=404, detail="Campaign output not found")
-    return manifest
-
-
-@app.get("/genai/campaigns", response_model=List[CampaignManifest])
-def list_campaign_outputs(limit: int = Query(default=10, ge=1, le=50)) -> List[CampaignManifest]:
-    return campaign_brief_service.list_campaigns()[:limit]
-
-
-@app.post("/genai/images", response_model=ImageGenerationManifest)
-def generate_campaign_images(request: ImageGenerationRequest) -> ImageGenerationManifest:
-    try:
-        return campaign_image_service.generate_and_save(request)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@app.post("/genai/campaigns/{campaign_id}/regenerate", response_model=CampaignManifest)
-def regenerate_campaign_output(campaign_id: str, request: CampaignRegenerationRequest) -> CampaignManifest:
-    try:
-        return campaign_brief_service.regenerate(campaign_id, request)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@app.get("/genai/campaigns/{campaign_id}/images", response_model=ImageGenerationManifest)
-def get_campaign_images(campaign_id: str) -> ImageGenerationManifest:
-    manifest = campaign_image_service.load_manifest(campaign_id)
-    if manifest is None:
-        raise HTTPException(status_code=404, detail="Campaign image output not found")
-    return manifest
-
-
-@app.post("/genai/campaigns/{campaign_id}/images/review", response_model=ImageGenerationManifest)
-def review_campaign_image(campaign_id: str, request: ImageReviewRequest) -> ImageGenerationManifest:
-    try:
-        return campaign_image_service.review_asset(campaign_id, request)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@app.get("/genai/assets/{campaign_id}/{filename}")
-def get_campaign_image_asset(campaign_id: str, filename: str) -> FileResponse:
-    asset_path = (campaign_storage.campaign_image_dir(campaign_id) / filename).resolve()
-    campaign_dir = campaign_storage.campaign_image_dir(campaign_id).resolve()
-    if campaign_dir not in asset_path.parents or not asset_path.exists():
-        raise HTTPException(status_code=404, detail="Image asset not found")
-    media_type = "image/png" if asset_path.suffix.lower() == ".png" else "image/svg+xml"
-    return FileResponse(asset_path, media_type=media_type)
-
-
-@app.get("/genai/campaigns/{campaign_id}/export")
-def export_campaign_bundle(campaign_id: str) -> FileResponse:
-    try:
-        export_path = campaign_export_service.export_campaign(campaign_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return FileResponse(export_path, media_type="application/zip", filename=export_path.name)
+app = create_app()
