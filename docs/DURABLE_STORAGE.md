@@ -32,6 +32,26 @@ For hosted deployment, `CAMPAIGNFORGE_STORAGE_ROOT` should point to a persistent
 - each campaign record stores a retention expiry timestamp
 - expired campaigns can be deleted together with their image assets and export bundles through `CampaignStorage.cleanup_expired_campaigns()`
 
+Run cleanup through the scheduled CLI entry point:
+
+```bash
+python -m genai.retention_cleanup
+```
+
+or with an explicit storage root:
+
+```bash
+python -m genai.retention_cleanup --storage-root /srv/campaignforge/generated
+```
+
+The command writes a JSON summary containing `status`, `deleted_campaign_count`, and `deleted_campaign_ids`. It is safe for cron, a worker, or a platform scheduler as long as it runs against the same persistent storage root as the application.
+
+Example cron entry:
+
+```cron
+15 2 * * * cd /srv/campaignforge && CAMPAIGNFORGE_STORAGE_ROOT=/srv/campaignforge/generated python -m genai.retention_cleanup
+```
+
 ## Hosted deployment guidance
 
 This is a step toward deployment-grade storage, not the final storage architecture.
@@ -41,4 +61,4 @@ For a fuller hosted deployment, the likely next move is:
 1. move metadata from SQLite to a managed relational database
 2. move binary assets from a mounted volume to object storage
 3. add tenant scoping and authorization around campaign access
-4. add background cleanup and export lifecycle management
+4. wire `python -m genai.retention_cleanup` into the chosen hosted scheduler

@@ -42,7 +42,13 @@ class CampaignStorage:
         connection.row_factory = sqlite3.Row
         return connection
 
-    def _ensure_column(self, connection: sqlite3.Connection, table_name: str, column_name: str, column_sql: str) -> None:
+    def _ensure_column(
+        self,
+        connection: sqlite3.Connection,
+        table_name: str,
+        column_name: str,
+        column_sql: str,
+    ) -> None:
         columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table_name})")}
         if column_name not in columns:
             connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_sql}")
@@ -66,7 +72,12 @@ class CampaignStorage:
                 )
                 """
             )
-            self._ensure_column(connection, "campaigns", "workspace_id", "workspace_id TEXT NOT NULL DEFAULT 'local-demo'")
+            self._ensure_column(
+                connection,
+                "campaigns",
+                "workspace_id",
+                "workspace_id TEXT NOT NULL DEFAULT 'local-demo'",
+            )
             self._ensure_column(connection, "campaigns", "created_by", "created_by TEXT")
             connection.execute(
                 """
@@ -326,7 +337,12 @@ class CampaignStorage:
             connection.commit()
         return manifest
 
-    def load_image_manifest(self, campaign_id: str, *, workspace_id: str | None = None) -> ImageGenerationManifest | None:
+    def load_image_manifest(
+        self,
+        campaign_id: str,
+        *,
+        workspace_id: str | None = None,
+    ) -> ImageGenerationManifest | None:
         query = """
             SELECT image_manifests.*
             FROM image_manifests

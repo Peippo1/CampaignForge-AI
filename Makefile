@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: setup demo genai-demo genai-image-demo genai-export-demo test train evaluate api dashboard run-dashboard airflow compat-check
+.PHONY: setup demo genai-demo genai-image-demo genai-export-demo retention-cleanup test train evaluate api dashboard run-dashboard airflow compat-check
 
 setup:
 	./setup.sh
@@ -16,6 +16,9 @@ genai-image-demo:
 
 genai-export-demo:
 	$(PYTHON) -m genai.export_demo --campaign-id $$(ls -1t data/generated/manifests/*.json | head -n 1 | xargs basename | sed 's/\.json$$//')
+
+retention-cleanup:
+	$(PYTHON) -m genai.retention_cleanup
 
 test:
 	$(PYTHON) -m pytest tests/

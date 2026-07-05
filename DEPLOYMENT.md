@@ -115,6 +115,7 @@ docker compose up --build
 See `docs/DURABLE_STORAGE.md` for the storage boundary and retention design.
 See `docs/OPERATIONS_BASELINE.md` for the current runtime and observability baseline.
 See `docs/HOSTED_AUTH.md` for the workspace/auth model and hosted-vs-demo guidance.
+See `docs/MANAGED_DATABASE_MIGRATION.md` for the hosted metadata-store migration plan.
 
 ## Intended Deployment Use
 
