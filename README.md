@@ -2,73 +2,65 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 # CampaignForge AI
-Turn campaign briefs and customer data into reusable strategy, copy, API responses, and dashboard-ready outputs from one modular codebase.
+Turn a campaign brief into a reviewed strategy, copy, and export pack from one modular Python codebase.
 
-CampaignForge AI is a production-style Python workflow for buyers who want a credible campaign intelligence demo or starter product. It packages ETL, lead-scoring style modeling, a GenAI brief copilot, API delivery, dashboard presentation, and deployment assets into one reviewable repository. It is not positioned as a hosted SaaS product or a finished image-generation platform.
+CampaignForge AI is a focused campaign planning and content-generation workflow for small marketing teams, freelancers, and agencies. The core commercial story is simple: brief, generate, review, export. The repository also includes supporting engineering assets for demos, custom delivery, and future hosted work, but it is not positioned as a broad campaign platform or a finished SaaS product.
 
 ## Product Workflow
 
-CampaignForge AI is designed around a simple workflow:
+CampaignForge AI is designed around one clear workflow:
 
 1. Brief
    Capture a structured campaign brief with product, audience, channel, and tone inputs.
-2. Strategy
-   Generate a campaign summary, personas, channel recommendations, and campaign angles.
-3. Copy
-   Produce headline variants, body copy variants, CTA options, and prompt-ready messaging.
-4. Image Concepts
-   Turn saved prompts into mock-first concept images or live-provider outputs when configured.
-5. Review
-   Revisit saved campaigns, regenerate copy or prompts, and approve or reject generated images.
-6. Export
-   Download a ZIP bundle containing the brief, copy, prompts, manifests, and saved images.
+2. Generate
+   Produce campaign strategy, audience suggestions, campaign angles, copy variants, CTAs, and image prompts.
+3. Review
+   Regenerate weak outputs, review image concepts, and keep only what is useful.
+4. Export
+   Download a ZIP bundle containing the brief, copy, prompts, image metadata, and selected assets.
 
-## What It Does
+## Core Outcome
 
-- Processes raw campaign and customer data into cleaned, analysis-ready datasets
-- Trains and evaluates a scikit-learn classification model for lead-scoring and campaign analytics style use cases
-- Generates campaign summaries, audience suggestions, copy variants, CTA variants, and image prompts from a structured brief
-- Generates optional concept images from saved campaign prompts with mock mode by default and live provider mode when configured
-- Tracks approval state for generated images, supports regeneration, and exports full campaign bundles as ZIP files
-- Exposes lightweight customer endpoints through FastAPI
-- Presents customer data, GenAI brief outputs, and CRM handoff workflows through Streamlit
-- Includes Airflow, Docker, and Kubernetes assets to support operational and deployment discussions
+The main value is turning a structured campaign brief into a reviewed campaign pack quickly. That pack can include:
+
+- campaign summary and angle options
+- audience suggestions
+- headline, body copy, and CTA variants
+- image prompts and optional concept images
+- reviewed outputs in one export bundle
 
 ## Who It's For
 
-- Developers packaging AI-adjacent marketing workflow products
-- Agencies or freelancers who need a credible starter codebase for campaign analytics tooling
-- Teams wanting a presentable example of ETL, modeling, API delivery, and dashboard UX in one repository
-- Buyers who value engineering breadth, deployment readiness, and documented demo workflows
+- small marketing teams that need a faster planning workflow
+- freelancers packaging campaign strategy and copy deliverables
+- agencies that want a repeatable internal accelerator before building custom tooling
+- buyers who want a credible starter product or delivery workflow they can adapt
 
-## Features
+## Core Features
 
 - Source-first repository with generated outputs removed from version control
-- ETL scripts, model training, and model evaluation workflow
 - GenAI brief copilot package with mock-first and API-key-gated live modes
 - Durable campaign metadata storage with managed asset paths for saved images and export bundles
 - Workflow controls for campaign history, regeneration, image review, and bundle export
 - FastAPI service and Streamlit dashboard
-- CRM integration examples for Salesforce and HubSpot
-- Google Sheets sync example
 - GitHub Actions workflows and automated tests
-- Dockerfiles, Kubernetes manifests, and Airflow DAGs
 - Supporting sale/demo docs:
   - `PROJECT_OVERVIEW.md`
+  - `PRODUCT.md`
+  - `docs/COMMERCIAL_MVP.md`
+  - `docs/PRODUCTISED_SERVICE_RUNBOOK.md`
+  - `docs/HOSTED_MVP.md`
   - `docs/DEMO_SCRIPT.md`
-  - `docs/SCREENSHOT_CHECKLIST.md`
-  - `docs/SAMPLE_OUTPUTS.md`
 
-## What’s Included
+## Optional Supporting Assets
 
-- Full Python source code for ETL, model training, evaluation, API delivery, and dashboard presentation
-- GenAI brief-to-copy workflow with campaign records stored in SQLite-backed metadata
-- Structured image generation folders under `CAMPAIGNFORGE_STORAGE_ROOT/assets/images/<campaign_id>/`
-- Exported campaign ZIP bundles under `CAMPAIGNFORGE_STORAGE_ROOT/assets/exports/`
-- Demo data, predictable demo outputs, and Makefile shortcuts
-- FastAPI and Streamlit interfaces for technical and non-technical walkthroughs
-- Docker, Kubernetes, and Airflow assets for packaging and operations discussions
-- Buyer-facing overview, deployment, release, and listing support docs
+These are useful for demos, custom delivery, or future expansion, but they are not the core product story:
+
+- ETL and lead-scoring workflow
+- CRM integration examples for Salesforce and HubSpot
+- Google Sheets sync example
+- Dockerfiles, Kubernetes manifests, and Airflow DAGs
+- deployment, release, and listing support docs
 
 ## Quickstart
 
@@ -97,8 +89,8 @@ That folder contains:
 - the latest trained model artifact
 - the training metrics JSON
 - the evaluation metrics JSON
-- a `genai/` folder containing the latest saved campaign brief manifest and copy output
-- saved image concept assets and metadata for the latest generated campaign
+- a `genai/` folder containing the latest saved campaign output bundle inputs
+- saved image concept assets for the latest generated campaign
 - an exported campaign ZIP ready for download or handoff
 - a small readme for quick inspection
 
@@ -140,9 +132,7 @@ Recommended buyer demo flow:
 Recommended public sale narrative:
 
 - Brief: enter a campaign concept and target market
-- Strategy: review the generated campaign summary and angle options
-- Copy: inspect headlines, body copy, CTAs, and saved prompts
-- Image Concepts: generate concept visuals from a selected angle
+- Generate: review the generated campaign summary, angle options, copy, and prompts
 - Review: approve or reject images, then regenerate where needed
 - Export: download the campaign ZIP bundle for handoff
 
@@ -154,6 +144,9 @@ Useful companion docs:
 - `docs/SAMPLE_OUTPUTS.md` for reusable output snippets
 - `docs/LISTING_COPY.md` for repo description and marketplace copy
 - `docs/ASSET_PREP.md` for screenshots, GIFs, and listing asset planning
+- `docs/COMMERCIAL_MVP.md` for the narrow product scope
+- `docs/PRODUCTISED_SERVICE_RUNBOOK.md` for the done-for-you operator workflow
+- `docs/HOSTED_MVP.md` for the smallest hosted product cut
 - `docs/GENAI_ROADMAP.md` for the staged GenAI plan
 - `docs/DURABLE_STORAGE.md` for campaign record and asset storage decisions
 - `docs/OPERATIONS_BASELINE.md` for supported runtimes, dependency boundaries, and observability expectations
@@ -200,11 +193,10 @@ project-root/
 
 ## Why This Is Useful
 
-- Shows an end-to-end campaign intelligence workflow in one reviewable repository
-- Gives buyers a realistic starting point rather than isolated notebooks or toy scripts
-- Demonstrates breadth across ETL, model training, API delivery, dashboard UX, and orchestration
-- Provides a stronger portfolio or resale asset than a single-purpose machine learning script
-- Includes deployment and CI assets that help the project feel operationally credible
+- Gives a buyer one clear outcome instead of an open-ended platform pitch
+- Supports a code asset, productised service, or later hosted MVP path
+- Keeps the main workflow small enough to ship and validate demand
+- Still includes enough engineering depth to support custom work and technical review
 
 ## Comparison
 
@@ -238,5 +230,6 @@ project-root/
 - Run `make compat-check` to validate the baseline runtime assumptions.
 - Use `CAMPAIGNFORGE_AUTH_MODE=workspace_api_key` for hosted API protection and `disabled` for local demo/code-asset mode.
 - Use `CAMPAIGNFORGE_DASHBOARD_AUTH_MODE=password` to protect the Streamlit dashboard in hosted mode.
+- The current commercial MVP is the brief-to-export workflow, not the full repository surface area.
 - The public GitHub repository description should match the CampaignForge AI positioning for consistency.
 - Sales assets can be organized under `docs/assets/` without changing the source layout.
