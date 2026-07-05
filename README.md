@@ -48,6 +48,7 @@ The main value is turning a structured campaign brief into a reviewed campaign p
   - `PROJECT_OVERVIEW.md`
   - `PRODUCT.md`
   - `docs/COMMERCIAL_MVP.md`
+  - `docs/SERVICE_LAUNCH_PACK.md`
   - `docs/PRODUCTISED_SERVICE_RUNBOOK.md`
   - `docs/HOSTED_MVP.md`
   - `docs/DEMO_SCRIPT.md`
@@ -145,6 +146,7 @@ Useful companion docs:
 - `docs/LISTING_COPY.md` for repo description and marketplace copy
 - `docs/ASSET_PREP.md` for screenshots, GIFs, and listing asset planning
 - `docs/COMMERCIAL_MVP.md` for the narrow product scope
+- `docs/SERVICE_LAUNCH_PACK.md` for the first service offer and exclusions
 - `docs/PRODUCTISED_SERVICE_RUNBOOK.md` for the done-for-you operator workflow
 - `docs/HOSTED_MVP.md` for the smallest hosted product cut
 - `docs/GENAI_ROADMAP.md` for the staged GenAI plan

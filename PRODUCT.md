@@ -60,6 +60,7 @@ It is not positioned as an enterprise platform or a production-ready hosted SaaS
 - `FEATURES.md` for a truthful feature list
 - `DEPLOYMENT.md` for local and Docker setup
 - `docs/COMMERCIAL_MVP.md` for the narrow commercial scope
+- `docs/SERVICE_LAUNCH_PACK.md` for the first service offer and boundaries
 - `docs/PRODUCTISED_SERVICE_RUNBOOK.md` for the service delivery workflow
 - `docs/HOSTED_MVP.md` for the smallest hosted cut
 - `RELEASE_CHECKLIST.md` for pre-sale quality control
