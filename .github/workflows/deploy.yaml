@@ -50,7 +50,7 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          LINT_TARGETS="genai/auth.py genai/retention_cleanup.py genai/storage.py genai/service.py scoring/fastapi_app.py utils/runtime_baseline.py utils/sheets_sync.py tests/test_auth_manager.py tests/test_fastapi.py tests/test_retention_cleanup.py tests/test_runtime_baseline.py tests/test_sheets_sync.py"
+          LINT_TARGETS="genai/auth.py genai/demo.py genai/image_demo.py genai/retention_cleanup.py genai/storage.py genai/service.py scoring/fastapi_app.py utils/runtime_baseline.py utils/sheets_sync.py tests/test_auth_manager.py tests/test_fastapi.py tests/test_genai_demo.py tests/test_genai_image_demo.py tests/test_retention_cleanup.py tests/test_runtime_baseline.py tests/test_sheets_sync.py"
           flake8 $LINT_TARGETS --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 $LINT_TARGETS --count --max-complexity=40 --max-line-length=120 --statistics
 
@@ -94,6 +94,8 @@ jobs:
           python -m pytest \
             tests/test_auth_manager.py \
             tests/test_fastapi.py \
+            tests/test_genai_demo.py \
+            tests/test_genai_image_demo.py \
             tests/test_genai_service.py \
             tests/test_genai_image_service.py \
             tests/test_genai_workflow_service.py \
@@ -112,7 +114,7 @@ jobs:
 
       - name: Run demo smoke check
         run: |
-          ./run-demo.sh
+          PYTHON_BIN=python bash run-demo.sh
 
       - name: Validate demo outputs
         run: |

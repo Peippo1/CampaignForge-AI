@@ -3,10 +3,10 @@ PYTHON ?= python
 .PHONY: setup demo genai-demo genai-image-demo genai-export-demo retention-cleanup test train evaluate api dashboard run-dashboard airflow compat-check
 
 setup:
-	./setup.sh
+	bash setup.sh
 
 demo:
-	./run-demo.sh
+	bash run-demo.sh
 
 genai-demo:
 	$(PYTHON) -m genai.demo
