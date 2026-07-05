@@ -9,7 +9,7 @@ PYTHON_BIN="${PYTHON_BIN:-}"
 if [[ -z "${PYTHON_BIN}" ]]; then
   if [[ ! -x "${ROOT_DIR}/.venv/bin/python" ]]; then
     echo "No local .venv found. Running setup first..."
-    "${ROOT_DIR}/setup.sh"
+    bash "${ROOT_DIR}/setup.sh"
   fi
   PYTHON_BIN="${ROOT_DIR}/.venv/bin/python"
 fi
@@ -24,29 +24,32 @@ pushd "${ROOT_DIR}" >/dev/null
 "${PYTHON_BIN}" etl/marketing_etl.py
 "${PYTHON_BIN}" models/train_model.py
 "${PYTHON_BIN}" models/evaluate_model.py
-"${PYTHON_BIN}" -m genai.demo --input data/demo/campaign_brief.json
-"${PYTHON_BIN}" -m genai.image_demo --campaign-id "$(ls -1t data/generated/manifests/*.json | head -n 1 | xargs basename | sed 's/\.json$//')"
-"${PYTHON_BIN}" -m genai.export_demo --campaign-id "$(ls -1t data/generated/manifests/*.json | head -n 1 | xargs basename | sed 's/\.json$//')"
+DEMO_OUTPUT="$("${PYTHON_BIN}" -m genai.demo --input data/demo/campaign_brief.json)"
+printf '%s\n' "${DEMO_OUTPUT}"
+CAMPAIGN_ID="$(printf '%s\n' "${DEMO_OUTPUT}" | awk -F': ' '/Generated campaign brief output:/ {print $2}' | tail -n 1)"
+if [[ -z "${CAMPAIGN_ID}" ]]; then
+  echo "Could not identify generated campaign id from demo output." >&2
+  exit 1
+fi
+"${PYTHON_BIN}" -m genai.image_demo --campaign-id "${CAMPAIGN_ID}"
+"${PYTHON_BIN}" -m genai.export_demo --campaign-id "${CAMPAIGN_ID}"
 
 LATEST_MODEL="$(ls -1t models/artifacts/models/trained_model_*.pkl | head -n 1)"
 LATEST_TRAIN_METRICS="$(ls -1t models/artifacts/models/trained_model_*_metrics.json | head -n 1)"
 LATEST_EVAL_METRICS="$(ls -1t models/outputs/*_evaluation.json | head -n 1)"
-LATEST_GENAI_MANIFEST="$(ls -1t data/generated/manifests/*.json | head -n 1)"
-LATEST_GENAI_COPY="$(ls -1t data/generated/copy/*.json | head -n 1)"
-LATEST_GENAI_IMAGE_MANIFEST="$(ls -1t data/generated/images/*/manifest.json | head -n 1)"
-LATEST_GENAI_IMAGE_DIR="$(dirname "${LATEST_GENAI_IMAGE_MANIFEST}")"
-LATEST_GENAI_EXPORT="$(ls -1t data/generated/exports/*.zip | head -n 1)"
+LATEST_GENAI_IMAGE_DIR="data/generated/assets/images/${CAMPAIGN_ID}"
+LATEST_GENAI_EXPORT="data/generated/assets/exports/${CAMPAIGN_ID}.zip"
+LATEST_GENAI_DATABASE="data/generated/metadata/campaigns.sqlite3"
 
 cp "${LATEST_MODEL}" "${OUTPUT_DIR}/"
 cp "${LATEST_TRAIN_METRICS}" "${OUTPUT_DIR}/"
 cp "${LATEST_EVAL_METRICS}" "${OUTPUT_DIR}/"
 mkdir -p "${OUTPUT_DIR}/genai"
-cp "${LATEST_GENAI_MANIFEST}" "${OUTPUT_DIR}/genai/"
-cp "${LATEST_GENAI_COPY}" "${OUTPUT_DIR}/genai/"
-mkdir -p "${OUTPUT_DIR}/genai/images"
-cp "${LATEST_GENAI_IMAGE_MANIFEST}" "${OUTPUT_DIR}/genai/images/"
-find "${LATEST_GENAI_IMAGE_DIR}" -maxdepth 1 \( -name '*.svg' -o -name '*.png' \) -exec cp {} "${OUTPUT_DIR}/genai/images/" \;
 cp "${LATEST_GENAI_EXPORT}" "${OUTPUT_DIR}/genai/"
+cp "${LATEST_GENAI_DATABASE}" "${OUTPUT_DIR}/genai/"
+printf '%s\n' "${DEMO_OUTPUT}" > "${OUTPUT_DIR}/genai/demo-output.txt"
+mkdir -p "${OUTPUT_DIR}/genai/images"
+find "${LATEST_GENAI_IMAGE_DIR}" -maxdepth 1 \( -name '*.svg' -o -name '*.png' \) -exec cp {} "${OUTPUT_DIR}/genai/images/" \;
 
 cat > "${OUTPUT_DIR}/README.txt" <<EOF
 CampaignForge AI Demo Output
@@ -57,9 +60,8 @@ Included files:
 - $(basename "${LATEST_MODEL}")                latest trained model artifact
 - $(basename "${LATEST_TRAIN_METRICS}")        training metrics saved during model training
 - $(basename "${LATEST_EVAL_METRICS}")         evaluation metrics for the latest model
-- genai/$(basename "${LATEST_GENAI_MANIFEST}") saved campaign brief manifest
-- genai/$(basename "${LATEST_GENAI_COPY}")     saved campaign brief copy output
-- genai/images/$(basename "${LATEST_GENAI_IMAGE_MANIFEST}") latest image generation metadata
+- genai/demo-output.txt                         generated campaign id and logical record references
+- genai/$(basename "${LATEST_GENAI_DATABASE}")  SQLite campaign metadata store snapshot
 - genai/images/*                                saved concept image assets
 - genai/$(basename "${LATEST_GENAI_EXPORT}")    exported campaign ZIP bundle
 

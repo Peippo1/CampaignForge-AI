@@ -122,7 +122,10 @@ class CampaignImageService:
 
         selected_angle = None
         if request.angle_id:
-            selected_angle = next((angle for angle in campaign.output.angles if angle.angle_id == request.angle_id), None)
+            selected_angle = next(
+                (angle for angle in campaign.output.angles if angle.angle_id == request.angle_id),
+                None,
+            )
             if selected_angle is None:
                 raise ValueError("Campaign angle not found")
 

@@ -4,8 +4,13 @@ import argparse
 import json
 from pathlib import Path
 
+from genai.pydantic_compat import model_validate
 from genai.schemas import CampaignBrief
 from genai.service import CampaignBriefService
+
+
+def load_campaign_brief(path: Path) -> CampaignBrief:
+    return model_validate(CampaignBrief, json.loads(path.read_text(encoding="utf-8")))
 
 
 def main() -> None:
@@ -18,7 +23,7 @@ def main() -> None:
     args = parser.parse_args()
 
     brief_path = Path(args.input)
-    brief = CampaignBrief.model_validate(json.loads(brief_path.read_text(encoding="utf-8")))
+    brief = load_campaign_brief(brief_path)
     manifest = CampaignBriefService().generate_and_save(brief)
     print(f"Generated campaign brief output: {manifest.campaign_id}")
     print(f"Manifest: {manifest.artifacts.manifest_path}")
@@ -27,4 +32,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

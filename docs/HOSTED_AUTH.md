@@ -17,6 +17,12 @@ CampaignForge AI now has a minimal hosted-deployment control layer built around 
 - usage is limited through per-workspace hourly request caps
 - audit events are stored for campaign and asset actions
 
+## Storage scoping
+
+Campaign records carry `workspace_id` and `created_by` metadata. Campaign list, load, image manifest, asset, and export paths all require the caller workspace to match the campaign workspace before content is returned.
+
+This keeps hosted auth meaningful below the API surface: an authenticated workspace can only read, regenerate, review, or export its own campaign records and managed assets.
+
 ## Demo vs hosted posture
 
 Code asset / demo mode:
@@ -40,7 +46,6 @@ Hosted mode:
 
 ## Follow-on work
 
-- `#47` workspace scoping through campaign storage queries and exports
 - `#48` managed database migration for hosted campaign records
 - `#49` object-storage abstraction for image and export assets
 - future auth expansion for multi-user hosted deployment

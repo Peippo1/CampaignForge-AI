@@ -175,6 +175,33 @@ def test_get_campaign_images_returns_404_when_missing(tmp_path: Path):
     assert response.status_code == 404
 
 
+def test_workspace_cannot_read_other_workspace_assets_or_exports(tmp_path: Path):
+    client, _ = build_client(tmp_path)
+    campaign_response = client.post(
+        "/genai/brief",
+        headers=auth_headers("key-a"),
+        json={
+            "campaign_name": "Private Asset Launch",
+            "product_name": "CampaignForge AI",
+            "brief": "Create private campaign assets that must stay inside one workspace.",
+        },
+    )
+    campaign_id = campaign_response.json()["campaign_id"]
+    angle_id = campaign_response.json()["output"]["angles"][0]["angle_id"]
+    image_response = client.post(
+        "/genai/images",
+        headers=auth_headers("key-a"),
+        json={"campaign_id": campaign_id, "angle_id": angle_id, "count": 1},
+    )
+    filename = image_response.json()["assets"][0]["file_path"].split("/")[-1]
+
+    asset_response = client.get(f"/genai/assets/{campaign_id}/{filename}", headers=auth_headers("key-b"))
+    export_response = client.get(f"/genai/campaigns/{campaign_id}/export", headers=auth_headers("key-b"))
+
+    assert asset_response.status_code == 404
+    assert export_response.status_code == 404
+
+
 def test_review_and_export_campaign_workflow(tmp_path: Path):
     client, _ = build_client(tmp_path)
     campaign_response = client.post(
