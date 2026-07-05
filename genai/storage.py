@@ -5,10 +5,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import shutil
 import sqlite3
 from typing import Any
 
+from genai.asset_store import AssetStore, LocalAssetStore
 from genai.pydantic_compat import model_to_dict, model_to_json, model_validate
 from genai.schemas import CampaignBrief, CampaignManifest, CampaignOutput, ImageGenerationManifest, SavedArtifact
 
@@ -25,15 +25,18 @@ DEFAULT_RETENTION_DAYS = int(os.getenv("CAMPAIGNFORGE_RETENTION_DAYS", "30"))
 
 
 class CampaignStorage:
-    def __init__(self, root: Path | None = None, retention_days: int | None = None):
+    def __init__(
+        self,
+        root: Path | None = None,
+        retention_days: int | None = None,
+        asset_store: AssetStore | None = None,
+    ):
         self.root = (root or DEFAULT_GENERATED_ROOT).resolve()
         self.retention_days = retention_days or DEFAULT_RETENTION_DAYS
         self.metadata_dir = self.root / "metadata"
-        self.asset_root = self.root / "assets"
-        self.image_root = self.asset_root / "images"
-        self.export_dir = self.asset_root / "exports"
+        self.asset_store = asset_store or LocalAssetStore(self.root)
         self.database_path = self.metadata_dir / "campaigns.sqlite3"
-        for directory in (self.root, self.metadata_dir, self.asset_root, self.image_root, self.export_dir):
+        for directory in (self.root, self.metadata_dir):
             directory.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -311,7 +314,7 @@ class CampaignStorage:
         return [self._campaign_from_row(row) for row in rows]
 
     def campaign_image_dir(self, campaign_id: str) -> Path:
-        return self.image_root / campaign_id
+        return self.asset_store.image_output_dir(campaign_id)
 
     def save_image_manifest(self, manifest: ImageGenerationManifest) -> ImageGenerationManifest:
         with self._connect() as connection:
@@ -382,13 +385,13 @@ class CampaignStorage:
         return manifest
 
     def export_zip_path(self, campaign_id: str) -> Path:
-        return self.export_dir / f"{campaign_id}.zip"
+        return self.asset_store.export_output_path(campaign_id)
 
     def relative_path(self, path: Path) -> str:
-        return str(path.resolve().relative_to(self.root))
+        return self.asset_store.reference_for_path(path)
 
     def resolve_managed_path(self, relative_path: str) -> Path:
-        return (self.root / relative_path).resolve()
+        return self.asset_store.resolve_reference(relative_path)
 
     def persist_export_path(self, campaign_id: str, export_zip_path: Path, *, workspace_id: str) -> None:
         with self._connect() as connection:
@@ -459,14 +462,10 @@ class CampaignStorage:
             ).fetchall()
             expired_ids = [row["campaign_id"] for row in rows]
             for row in rows:
-                image_dir = self.campaign_image_dir(row["campaign_id"])
-                if image_dir.exists():
-                    shutil.rmtree(image_dir)
+                self.asset_store.delete_campaign_images(row["campaign_id"])
                 export_zip_path = row["export_zip_path"]
                 if export_zip_path:
-                    resolved_export = self.resolve_managed_path(export_zip_path)
-                    if resolved_export.exists():
-                        resolved_export.unlink()
+                    self.asset_store.delete_reference(export_zip_path)
             if expired_ids:
                 connection.executemany(
                     "DELETE FROM image_manifests WHERE campaign_id = ?",
