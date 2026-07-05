@@ -2,60 +2,56 @@
 
 ## Summary
 
-`CampaignForge AI` is a portfolio-ready marketing intelligence application that demonstrates an end-to-end workflow for campaign and customer data operations. It combines ETL, feature engineering, model training, a GenAI brief copilot, optional image concept generation, API delivery, dashboard presentation, and workflow orchestration in one repository.
+`CampaignForge AI` is a focused campaign planning and content-generation workflow for small marketing teams, freelancers, and agencies. The clearest product story is simple: take a brief, generate campaign strategy and copy, review the outputs, and export a handoff bundle.
 
 ## What A Buyer Gets
 
-- A Python marketing workflow codebase covering ingestion, transformation, modeling, and presentation
-- A GenAI layer that turns campaign briefs into structured copy outputs and concept-image prompts
-- Workflow controls for regeneration, image approvals, campaign history, and export bundles
-- A FastAPI service for exposing customer-facing or internal scoring endpoints
-- A Streamlit dashboard for stakeholder-friendly reporting and CRM workflow demos
-- Airflow DAGs, Dockerfiles, and Kubernetes manifests to support deployment conversations
-- GitHub Actions workflows and automated tests for baseline engineering hygiene
+- A Python workflow that turns campaign briefs into structured strategy, copy, prompts, and export bundles
+- Workflow controls for regeneration, image approvals, campaign history, and exports
+- A FastAPI service and Streamlit dashboard for demos and operator use
+- Enough engineering support material to back up delivery, technical review, and later productisation
 
 ## Core Capabilities
 
-- ETL pipeline for cleaning and enriching campaign and customer datasets
-- Scikit-learn training flow for lead-scoring style classification
-- Model evaluation and artifact generation
-- Optional image concept generation with mock-first local mode
-- CRM export examples for Salesforce and HubSpot
-- Google Sheets synchronization example for lightweight ops workflows
-- Optional OpenTelemetry instrumentation for the FastAPI service
+- structured campaign brief input
+- generated strategy, angles, copy, CTAs, and prompts
+- optional image concept generation with mock-first local mode
+- review and regeneration workflow
+- exportable campaign bundle
 
 ## Commercial Positioning
 
 This repository is best positioned as:
 
-- a portfolio-quality campaign intelligence engineering sample
-- a starter codebase for internal marketing analytics tools
-- a demo project for buyers wanting Python, FastAPI, Streamlit, and Airflow in one package
+- a starter product for campaign planning and content generation
+- a productised-service accelerator for agencies and freelancers
+- a technically credible code asset that can later be narrowed into a hosted product
 
-It is not positioned as a finished SaaS product. Its value is in demonstrating architecture, implementation quality, deployment readiness, and integration patterns.
+It is not positioned as a finished SaaS platform. Its value is in delivering a clear workflow while staying honest about current hosted limitations.
 
 ## Recommended Demo Story
 
-1. Show the project structure and explain the end-to-end architecture.
-2. Run the one-command demo with `make demo`.
-3. Review `demo_outputs/latest/` to show the saved outputs.
-4. Launch the API with `make api` and show `/health` plus `/customers`.
-5. Launch the dashboard with `make dashboard` and walk through scoring and CRM export flows.
-6. Highlight Docker, Kubernetes, and Airflow assets as operational maturity indicators.
+1. Run the one-command demo with `make demo`.
+2. Review `demo_outputs/latest/` to show the saved campaign pack outputs.
+3. Explain the brief -> generate -> review -> export workflow.
+4. Launch the dashboard with `make dashboard` and show campaign history, regeneration, and export.
+5. Launch the API with `make api` and show the protected campaign endpoints.
+6. Only then reference broader deployment assets as supporting credibility, not the main pitch.
 
 ## Suggested Buyer Talking Points
 
-- Clear separation between app, pipeline, orchestration, and deployment concerns
-- Security-conscious defaults and reduced dependency risk
-- Test coverage and CI workflows already in place
-- Lightweight enough for handoff, extension, or white-label adaptation
-- Easy to demonstrate visually thanks to the dashboard and API entry points
+- the product solves a narrow, easy-to-understand problem
+- the workflow is small enough to deliver manually or package as software
+- security-conscious defaults and CI coverage reduce delivery risk
+- the same code can support a code asset, service workflow, or later hosted cut
 
 ## Contents To Highlight In A Listing
 
 - `README.md` for quick-start and architecture
+- `docs/COMMERCIAL_MVP.md` for product scope
+- `docs/PRODUCTISED_SERVICE_RUNBOOK.md` for service delivery
+- `docs/HOSTED_MVP.md` for the hosted cut
 - `Makefile` for demo commands
 - `scoring/fastapi_app.py` for API delivery
 - `streamlit_app.py` for dashboard UX
-- `airflow/dags/` for orchestration examples
-- `k8s/` and Dockerfiles for deployment readiness
+- Dockerfiles and deployment docs for packaging discussions

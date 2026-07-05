@@ -2,51 +2,46 @@
 
 ## What This Is
 
-`CampaignForge AI` is a downloadable developer asset that demonstrates a complete campaign intelligence workflow in one repository. It combines data preparation, model training, a GenAI brief copilot, API delivery, dashboard presentation, and orchestration assets in a format that is easy to review and adapt.
+`CampaignForge AI` is a small, focused campaign planning and content-generation product built around one clear workflow: brief, generate, review, export. It can be sold as a downloadable code asset today, used as an internal agency accelerator, or narrowed further into a hosted product later.
 
 This product is best positioned as:
 
-- a portfolio-grade campaign intelligence engineering codebase
-- a starter project for internal marketing analytics or campaign operations tools
-- a reusable demo for FastAPI, Streamlit, Airflow, Docker, and Kubernetes workflows
+- a starter product for campaign planning and content generation
+- a productised-service accelerator for agencies and freelancers
+- a technically credible code asset that can be extended after demand is proven
 
-It is not positioned as a finished SaaS product or managed hosted service.
+It is not positioned as an enterprise platform or a production-ready hosted SaaS product.
 
 ## Buyer-Facing Value
 
-- Saves time compared with assembling ETL, ML, API, dashboard, and deployment pieces from scratch
-- Gives buyers a credible end-to-end Python marketing workflow example instead of isolated notebooks or partial demos
-- Provides a presentable codebase for resale, customization, internal demos, or portfolio use
-- Includes enough operational assets to support deployment conversations, technical reviews, or white-label adaptation
+- Gives the buyer a fast route from campaign brief to usable strategy and copy outputs
+- Reduces the amount of manual campaign planning and first-draft writing needed for each job
+- Provides a credible technical base for delivery, demos, and customization
+- Leaves room for custom service work without forcing a large product build first
 
 ## What The Buyer Gets
 
-- ETL pipeline for preparing marketing data
-- Scikit-learn training and evaluation flow
 - GenAI brief copilot for campaign summaries, personas, channel suggestions, copy variants, CTA variants, and image prompts
 - Optional image concept generation from saved prompts, with local mock mode for demos
 - Workflow controls for regeneration, image approvals, saved history, and campaign export ZIPs
 - FastAPI application with lightweight customer endpoints
 - Streamlit dashboard for stakeholder-friendly presentation
-- CRM integration examples for Salesforce and HubSpot
-- Google Sheets sync example
-- Airflow DAGs and scripts for orchestration
-- Dockerfiles and Kubernetes manifests
 - GitHub Actions workflows and automated tests
 - Setup, demo, and sales-support documentation
 
 ## Good Fit For
 
-- agencies building internal analytics tooling
-- freelancers selling reusable Python data products
-- teams wanting a starter project for lead-scoring or campaign analytics demos
-- buyers who want a technically credible code asset they can extend
+- small marketing teams
+- freelancers packaging campaign planning and copy deliverables
+- agencies that want a repeatable internal accelerator
+- buyers who want a technically credible code asset they can extend carefully
 
 ## Not Included
 
 - hosted infrastructure
-- paid APIs or third-party credentials
 - a production multi-tenant SaaS layer
+- enterprise collaboration features
+- automated publishing or media activation
 - ongoing maintenance or support built into the repository itself
 
 ## Why It Builds Trust
@@ -57,12 +52,16 @@ It is not positioned as a finished SaaS product or managed hosted service.
 - mock-first GenAI mode for local demos without external keys
 - explicit deployment assets
 - test and CI coverage already present
+- explicit scope notes for commercial MVP, service delivery, and hosted MVP
 
 ## Sales Support Material
 
 - `PROJECT_OVERVIEW.md` for a concise buyer summary
 - `FEATURES.md` for a truthful feature list
 - `DEPLOYMENT.md` for local and Docker setup
+- `docs/COMMERCIAL_MVP.md` for the narrow commercial scope
+- `docs/PRODUCTISED_SERVICE_RUNBOOK.md` for the service delivery workflow
+- `docs/HOSTED_MVP.md` for the smallest hosted cut
 - `RELEASE_CHECKLIST.md` for pre-sale quality control
 - `docs/LISTING_COPY.md` for listing text and GitHub About copy
 - `docs/ASSET_PREP.md` for screenshot and GIF planning
