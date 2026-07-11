@@ -4,6 +4,8 @@ CampaignForge AI can be sold as a done-for-you campaign planning accelerator bef
 
 This workflow is designed for one operator or a small agency team.
 
+See `docs/SERVICE_LAUNCH_PACK.md` for the concrete offer boundary, deliverables, turnaround assumptions, and revision policy.
+
 ## Service promise
 
 Turn a client campaign brief into a reviewed campaign pack containing strategy, audience angles, copy variants, image prompts, concept assets, and an export bundle.
