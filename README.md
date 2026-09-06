@@ -17,7 +17,7 @@ make hosted-api
 make web
 ```
 
-The API runs at `http://localhost:8000` and the Next.js app at `http://localhost:3000`. Development uses explicit workspace/user headers and in-memory jobs by default. Production rejects that header-based identity path and requires Firebase plus PostgreSQL configuration from `.env.example`.
+The API runs at `http://localhost:8000` and the Next.js app at `http://localhost:3000`. Development uses server-only workspace/user headers, in-memory jobs, and automatic mock-job dispatch by default. Browser code never controls those identity headers. A local `next start` production build must opt in with `CAMPAIGNFORGE_WEB_AUTH_MODE=development`; hosted production omits that setting and requires a verified Firebase session cookie plus PostgreSQL configuration from `.env.example`.
 
 Low-cost development is the default: deterministic mock agents in tests, `gpt-5.6-luna` when live text is explicitly enabled, `gpt-image-1-mini` for images, at most two images per run, a £20-equivalent monthly workspace cap, Cloud Run scale-to-zero, and a throttled task queue. No test invokes a paid model.
 

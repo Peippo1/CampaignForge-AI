@@ -121,7 +121,13 @@ def create_app(  # noqa: C901 - endpoint registration is intentionally centraliz
         allow_origins=list(settings.allowed_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-CampaignForge-Workspace"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "X-CampaignForge-Workspace",
+            "X-CampaignForge-Token-Type",
+        ],
     )
 
     @app.middleware("http")
@@ -153,6 +159,7 @@ def create_app(  # noqa: C901 - endpoint registration is intentionally centraliz
         workspace_id: str | None = Header(default=None, alias="X-CampaignForge-Workspace"),
         user_id: str | None = Header(default=None, alias="X-CampaignForge-User"),
         role: str | None = Header(default=None, alias="X-CampaignForge-Role"),
+        credential_kind: str | None = Header(default=None, alias="X-CampaignForge-Token-Type"),
     ) -> WorkflowActor:
         if allow_development_headers and workspace_id and user_id and role:
             try:
@@ -161,7 +168,10 @@ def create_app(  # noqa: C901 - endpoint registration is intentionally centraliz
                 raise HTTPException(status_code=401, detail="Invalid development role.") from exc
         if authorization and authorization.lower().startswith("bearer ") and workspace_id and identity_resolver:
             try:
-                return identity_resolver.resolve(authorization.split(" ", 1)[1], workspace_id)
+                token = authorization.split(" ", 1)[1]
+                if credential_kind == "session-cookie":
+                    return identity_resolver.resolve_session_cookie(token, workspace_id)
+                return identity_resolver.resolve(token, workspace_id)
             except IdentityError as exc:
                 raise HTTPException(status_code=401, detail=str(exc)) from exc
         raise HTTPException(status_code=401, detail="Authentication required.")
