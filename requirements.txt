@@ -2,8 +2,8 @@
 # Components are split to keep installs small and auditable.
 -r requirements-fastapi.txt
 -r requirements-streamlit.txt
-
 pyarrow==23.0.1
+protobuf==5.29.6
 SQLAlchemy==2.0.44
 python-dotenv==1.2.2
 pyspark==3.5.4
