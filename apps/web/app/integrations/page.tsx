@@ -1,0 +1,5 @@
+import { AppShell } from "@/components/app-shell";
+import { Check, RefreshCw } from "lucide-react";
+
+export default function IntegrationsPage() { return <AppShell><div className="page"><header className="page-header"><div><p className="eyebrow">Read-only data</p><h1>Integrations</h1><p>Connect performance sources without giving CampaignForge publishing permissions.</p></div></header><section className="integration-grid"><Integration name="Google Ads" state="Connected" detail="Synced 18 minutes ago" connected/><Integration name="Meta Ads" state="Connect" detail="Read-only campaign insights"/></section></div></AppShell>; }
+function Integration({name,state,detail,connected=false}:{name:string;state:string;detail:string;connected?:boolean}) { return <article className="content-card integration-card"><span className={`integration-logo ${connected?"connected":""}`}>{connected?<Check/>:<RefreshCw/>}</span><div><h2>{name}</h2><p>{detail}</p></div><button className={`button ${connected?"secondary":"primary"}`}>{state}</button></article>; }

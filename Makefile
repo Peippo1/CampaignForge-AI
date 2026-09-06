@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: setup demo genai-demo genai-image-demo genai-export-demo retention-cleanup test train evaluate api dashboard run-dashboard airflow compat-check
+.PHONY: setup demo genai-demo genai-image-demo genai-export-demo retention-cleanup test train evaluate api hosted-api web web-build migrate dashboard run-dashboard airflow compat-check
 
 setup:
 	bash setup.sh
@@ -35,6 +35,18 @@ evaluate:
 
 api:
 	uvicorn scoring.fastapi_app:app --reload
+
+hosted-api:
+	uvicorn backend.api:app --reload
+
+web:
+	npm run dev:web
+
+web-build:
+	npm run build:web
+
+migrate:
+	alembic upgrade head
 
 dashboard:
 	streamlit run streamlit_app.py
