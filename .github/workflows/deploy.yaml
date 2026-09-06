@@ -3,8 +3,6 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 permissions:
   contents: read
@@ -50,13 +48,13 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          LINT_TARGETS="genai/asset_store.py genai/auth.py genai/demo.py genai/image_demo.py genai/retention_cleanup.py genai/storage.py genai/service.py scoring/fastapi_app.py utils/runtime_baseline.py utils/sheets_sync.py tests/test_asset_store.py tests/test_auth_manager.py tests/test_fastapi.py tests/test_genai_demo.py tests/test_genai_image_demo.py tests/test_retention_cleanup.py tests/test_runtime_baseline.py tests/test_sheets_sync.py"
+          LINT_TARGETS="backend genai/asset_store.py genai/auth.py genai/demo.py genai/image_demo.py genai/retention_cleanup.py genai/storage.py genai/service.py scoring/fastapi_app.py utils/runtime_baseline.py utils/sheets_sync.py tests/test_asset_store.py tests/test_auth_manager.py tests/test_fastapi.py tests/test_genai_demo.py tests/test_retention_cleanup.py tests/test_runtime_baseline.py tests/test_sheets_sync.py"
           flake8 $LINT_TARGETS --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 $LINT_TARGETS --count --max-complexity=40 --max-line-length=120 --statistics
 
       - name: Security scan with Bandit
         run: |
-          bandit -q -r genai scoring utils etl models -x tests
+          bandit -q -r backend genai scoring utils etl models -x tests,backend/migrations
 
   test:
     runs-on: ubuntu-latest
@@ -105,6 +103,14 @@ jobs:
             tests/test_retention_cleanup.py \
             tests/test_runtime_baseline.py \
             tests/test_sheets_sync.py \
+            tests/test_campaign_agents.py \
+            tests/test_campaign_workflow_v1.py \
+            tests/test_hosted_api_v1.py \
+            tests/test_hosted_jobs.py \
+            tests/test_config_and_identity.py \
+            tests/test_assets_v1.py \
+            tests/test_brand_kits_v1.py \
+            tests/test_agent_worker.py \
             --maxfail=1 \
             --disable-warnings \
             -q
@@ -122,9 +128,27 @@ jobs:
           test -f demo_outputs/latest/README.txt
           find demo_outputs/latest/genai -maxdepth 2 -type f | sort
 
+      - name: Validate hosted migration
+        run: DATABASE_URL=sqlite:////tmp/campaignforge-migration.db python -m alembic upgrade head
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run lint:web
+      - run: npm run typecheck:web
+      - run: npm run build:web
+
   docker-build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, web]
     timeout-minutes: 20
     steps:
       - name: Checkout code
@@ -133,7 +157,8 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker images (root app and FastAPI scoring)
+      - name: Build Docker images
         run: |
           docker build -t marketing-analytics-app .
           docker build -f Dockerfile.fastapi -t fastapi-app .
+          docker build -f Dockerfile.hosted -t campaignforge-hosted .

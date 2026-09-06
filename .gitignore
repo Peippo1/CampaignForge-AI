@@ -44,9 +44,18 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Node / Next.js
+node_modules/
+.next/
+.vercel/
+*.tsbuildinfo
+
 # VS Code
 .vscode/
 .idea/
+node_modules/
+apps/web/.next/
+apps/web/.vercel/
 
 # Streamlit
 .streamlit/secrets.toml

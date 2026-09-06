@@ -4,7 +4,22 @@
 # CampaignForge AI
 Turn a campaign brief into a reviewed strategy, copy, and export pack from one modular Python codebase.
 
-CampaignForge AI is a focused campaign planning and content-generation workflow for small marketing teams, freelancers, and agencies. The core commercial story is simple: brief, generate, review, export. The repository also includes supporting engineering assets for demos, custom delivery, and future hosted work, but it is not positioned as a broad campaign platform or a finished SaaS product.
+CampaignForge AI is becoming a campaign intelligence and GenAI workflow platform for small marketing teams, freelancers, and agencies. The new hosted path combines a Next.js workspace with a FastAPI campaign state machine and manager-style specialist agents. The core journey remains simple: brief, strategy, copy, creative, approval, export.
+
+The hosted redesign is under active development. The existing Streamlit demo remains available only as a rollback/reference path until production acceptance; it is not the target interface.
+
+## Hosted App Quickstart
+
+```bash
+python -m pip install -r requirements-dev.txt
+npm ci
+make hosted-api
+make web
+```
+
+The API runs at `http://localhost:8000` and the Next.js app at `http://localhost:3000`. Development uses explicit workspace/user headers and in-memory jobs by default. Production rejects that header-based identity path and requires Firebase plus PostgreSQL configuration from `.env.example`.
+
+Low-cost development is the default: deterministic mock agents in tests, `gpt-5.6-luna` when live text is explicitly enabled, `gpt-image-1-mini` for images, at most two images per run, a £20-equivalent monthly workspace cap, Cloud Run scale-to-zero, and a throttled task queue. No test invokes a paid model.
 
 ## Product Workflow
 
@@ -42,7 +57,12 @@ The main value is turning a structured campaign brief into a reviewed campaign p
 - GenAI brief copilot package with mock-first and API-key-gated live modes
 - Durable campaign metadata storage with managed asset paths for saved images and export bundles
 - Workflow controls for campaign history, regeneration, image review, and bundle export
-- FastAPI service and Streamlit dashboard
+- Next.js 16 workspace and versioned FastAPI service
+- Firebase-ready owner/editor/reviewer authorization
+- PostgreSQL campaign and job adapters with Alembic migration
+- Private GCS asset adapter with short-lived V4 signed URLs
+- Manager agent with strategist, copywriter, creative-director, and performance-analyst tools
+- Legacy Streamlit dashboard retained temporarily for cutover verification
 - GitHub Actions workflows and automated tests
 - Supporting sale/demo docs:
   - `PROJECT_OVERVIEW.md`
@@ -160,6 +180,9 @@ Useful companion docs:
 
 ```text
 project-root/
+├── apps/web/                 # Next.js 16 campaign workspace
+├── backend/                  # Hosted workflow, API, agents, identity, jobs, assets
+├── infra/terraform/          # Low-cost GCP foundation
 ├── airflow/                  # Airflow DAGs, scripts, and container setup
 ├── data/raw/                 # Sample raw dataset and supporting assets
 ├── docs/                     # Demo, screenshot, and sales-support material
@@ -184,9 +207,11 @@ project-root/
 | Language | Python 3.11 |
 | Data processing | Pandas |
 | ML | scikit-learn |
-| GenAI | Mock-first brief copilot with optional OpenAI-compatible mode |
-| API | FastAPI |
-| Dashboard | Streamlit |
+| GenAI | OpenAI Agents SDK with mock-only tests and low-cost live defaults |
+| API | Versioned FastAPI API |
+| Dashboard | Next.js 16, TypeScript, Tailwind CSS v4, Recharts |
+| Hosted data | PostgreSQL, private Cloud Storage, Cloud Tasks |
+| Identity | Firebase token verification plus workspace roles |
 | Scheduling | Apache Airflow |
 | Packaging | Docker |
 | Deployment assets | Kubernetes manifests |
