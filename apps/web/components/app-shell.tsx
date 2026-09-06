@@ -7,7 +7,7 @@ import { useState } from "react";
 
 const links = [
   ["Dashboard", "/", LayoutDashboard],
-  ["Campaigns", "/campaigns/autumn-launch", Megaphone],
+  ["Campaigns", "/campaigns", Megaphone],
   ["Analytics", "/analytics", BarChart3],
   ["Brand kits", "/brand-kits", BookOpen],
   ["Integrations", "/integrations", Cable],

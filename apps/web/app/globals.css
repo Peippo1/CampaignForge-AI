@@ -24,6 +24,7 @@ body { margin: 0; color: var(--foreground); background: var(--background); font-
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .68; transform: none !important; }
 a { color: inherit; text-decoration: none; }
 svg { width: 1.1rem; height: 1.1rem; flex: none; }
 :focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
@@ -64,6 +65,30 @@ main { margin-left: 244px; min-height: 100dvh; }
 .button.secondary:hover, .button.ghost:hover { background: #f1f5f9; }
 .button.ghost { color: var(--primary); background: transparent; }
 .icon-button { min-width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: .55rem; background: transparent; color: inherit; }
+.inline-create-form { margin-bottom: 1.25rem; padding: 1.1rem; border: 1px solid var(--border); border-radius: var(--radius); background: white; box-shadow: var(--shadow); }
+.inline-create-form label { display: block; margin-bottom: .45rem; font-size: .75rem; font-weight: 700; }
+.inline-create-form > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .65rem; }
+.inline-create-form input, .brand-kit-form input, .brand-kit-form textarea { width: 100%; min-height: 44px; padding: .65rem .75rem; border: 1px solid var(--border); border-radius: .55rem; background: white; }
+.campaign-grid, .brand-kit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+.campaign-card { min-height: 150px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius); background: white; box-shadow: var(--shadow); transition: border-color 180ms ease, transform 180ms ease; }
+.campaign-card:hover { border-color: #93c5fd; transform: translateY(-2px); }
+.campaign-card h2, .brand-kit-grid h2 { margin: .8rem 0 .25rem; font-size: 1rem; }
+.campaign-card p { margin: 0; color: var(--muted); font-size: .75rem; }
+.campaign-card > svg { color: var(--primary); }
+.brand-kit-form { margin-bottom: 1rem; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+.form-grid label { display: grid; gap: .4rem; color: #334155; font-size: .75rem; font-weight: 650; }
+.form-grid textarea { resize: vertical; }
+.form-wide { grid-column: 1 / -1; }
+.form-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
+.form-error { margin: .55rem 0 0; color: var(--danger); font-size: .75rem; }
+.form-success { color: var(--success); font-size: .75rem; }
+.service-state { border-style: dashed; }
+.skeleton { border-radius: .65rem; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: skeleton 1.4s ease-in-out infinite; }
+.skeleton-title { width: 240px; height: 42px; margin-bottom: 2rem; }
+.skeleton-form { height: 92px; margin-bottom: 1rem; }
+.skeleton-card { height: 150px; }
+@keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem; }
 .metric-card, .panel, .content-card, .empty-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .metric-card { min-height: 156px; position: relative; padding: 1.2rem; overflow: hidden; }
@@ -159,6 +184,14 @@ tbody td:first-child { font-weight: 620; }
 .agent-compose > div { position: relative; }
 .agent-compose textarea { width: 100%; min-height: 72px; resize: vertical; padding: .7rem 2.7rem .7rem .7rem; border: 1px solid var(--border); border-radius: .65rem; background: #f8fafc; font-size: .78rem; }
 .agent-compose small { color: var(--muted); font-size: .62rem; }
+.agent-submit { width: 100%; margin: .65rem 0 .35rem; }
+.run-notice { display: flex; gap: .5rem; margin-top: .75rem; padding: .7rem; border-radius: .6rem; color: #1e3a8a; background: var(--primary-soft); font-size: .72rem; }
+.run-notice.error { color: #991b1b; background: #fef2f2; }
+.canvas-empty { padding: 3rem 1.5rem; }
+.activity-row { display: grid; grid-template-columns: 34px 1fr; gap: .7rem; align-items: center; padding: .75rem 0; border-top: 1px solid var(--border); }
+.activity-row > span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: var(--primary); background: var(--primary-soft); font-size: .68rem; font-weight: 750; }
+.activity-row strong, .activity-row small { display: block; font-size: .75rem; }
+.activity-row small { color: var(--muted); }
 .send-button { position: absolute; right: .4rem; bottom: .55rem; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: .5rem; color: white; background: var(--primary); }
 .mobile-agent-button { display: none; }
 .integration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
@@ -199,6 +232,9 @@ tbody td:first-child { font-weight: 620; }
   .campaign-canvas { width: calc(100% - 2rem); padding-top: 1.25rem; }
   .canvas-heading { flex-direction: column; }
   .content-columns, .integration-grid { grid-template-columns: 1fr; }
+  .campaign-grid, .brand-kit-grid, .form-grid { grid-template-columns: 1fr; }
+  .form-wide { grid-column: auto; }
+  .inline-create-form > div { grid-template-columns: 1fr; }
 }
 @media (max-width: 460px) {
   .metric-grid { grid-template-columns: 1fr; }

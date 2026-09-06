@@ -1,6 +1,11 @@
 from fastapi.testclient import TestClient
 
 from backend.api import create_app
+from backend.brand_kits import BrandKitService
+from backend.campaigns.workflow import Role, WorkflowActor
+from backend.campaigns.workflow import CampaignWorkflow
+from backend.idempotency import InMemoryIdempotencyStore
+from backend.jobs import InMemoryJobQueue
 
 
 def _headers(role: str, user_id: str) -> dict[str, str]:
@@ -76,3 +81,49 @@ def test_v1_campaign_approval_uses_the_shared_workflow():
         f"/v1/campaigns/{campaign_id}/approvals/final", headers=reviewer_headers
     )
     assert final.json()["export_enabled"] is True
+
+
+class RecordingIdentityResolver:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, str]] = []
+
+    def resolve(self, token: str, workspace_id: str) -> WorkflowActor:
+        self.calls.append(("id", token, workspace_id))
+        return WorkflowActor(user_id="firebase-user", workspace_id=workspace_id, role=Role.OWNER)
+
+    def resolve_session_cookie(self, token: str, workspace_id: str) -> WorkflowActor:
+        self.calls.append(("session", token, workspace_id))
+        return WorkflowActor(user_id="firebase-user", workspace_id=workspace_id, role=Role.OWNER)
+
+
+def test_v1_accepts_a_verified_firebase_session_cookie(monkeypatch):
+    monkeypatch.setenv("CAMPAIGNFORGE_ENV", "production")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://unused-for-injected-services")
+    monkeypatch.setenv("FIREBASE_PROJECT_ID", "firebase-project")
+    monkeypatch.setenv("GCP_PROJECT_ID", "gcp-project")
+    monkeypatch.setenv("GCS_ASSET_BUCKET", "private-assets")
+    monkeypatch.setenv("CLOUD_TASKS_QUEUE", "agent-runs")
+    monkeypatch.setenv("CLOUD_TASKS_WORKER_URL", "https://worker.example.test/tasks")
+    monkeypatch.setenv("CAMPAIGNFORGE_ALLOWED_ORIGINS", "https://app.example.test")
+    resolver = RecordingIdentityResolver()
+    client = TestClient(
+        create_app(
+            workflow=CampaignWorkflow(),
+            identity_resolver=resolver,
+            job_queue=InMemoryJobQueue(),
+            idempotency_store=InMemoryIdempotencyStore(),
+            brand_kit_service=BrandKitService(),
+        )
+    )
+
+    response = client.get(
+        "/v1/campaigns",
+        headers={
+            "Authorization": "Bearer signed-session-cookie",
+            "X-CampaignForge-Workspace": "workspace-1",
+            "X-CampaignForge-Token-Type": "session-cookie",
+        },
+    )
+
+    assert response.status_code == 200
+    assert resolver.calls == [("session", "signed-session-cookie", "workspace-1")]

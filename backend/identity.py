@@ -80,13 +80,20 @@ class SQLAlchemyMembershipDirectory:
 
 
 class FirebaseIdentityResolver:
-    """Verifies Firebase ID tokens, then resolves authorization from workspace membership."""
+    """Verifies Firebase credentials, then resolves workspace authorization."""
 
     def __init__(self, directory: MembershipDirectory, *, project_id: str) -> None:
         self.directory = directory
         self.project_id = project_id
 
     def resolve(self, token: str, workspace_id: str) -> WorkflowActor:
+        return self._resolve_claims(self._verify_id_token(token), workspace_id)
+
+    def resolve_session_cookie(self, token: str, workspace_id: str) -> WorkflowActor:
+        """Verify the long-lived, HttpOnly session cookie issued by the Next.js app."""
+        return self._resolve_claims(self._verify_session_cookie(token), workspace_id)
+
+    def _firebase_auth(self):
         try:
             import firebase_admin
             from firebase_admin import auth
@@ -95,9 +102,23 @@ class FirebaseIdentityResolver:
                 firebase_admin.get_app()
             except ValueError:
                 firebase_admin.initialize_app(options={"projectId": self.project_id})
-            claims = auth.verify_id_token(token, check_revoked=True)
+        except Exception as exc:
+            raise IdentityError("Firebase identity verification is unavailable.") from exc
+        return auth
+
+    def _verify_id_token(self, token: str) -> dict:
+        try:
+            return self._firebase_auth().verify_id_token(token, check_revoked=True)
         except Exception as exc:
             raise IdentityError("Invalid or expired identity token.") from exc
+
+    def _verify_session_cookie(self, token: str) -> dict:
+        try:
+            return self._firebase_auth().verify_session_cookie(token, check_revoked=True)
+        except Exception as exc:
+            raise IdentityError("Invalid or expired session.") from exc
+
+    def _resolve_claims(self, claims: dict, workspace_id: str) -> WorkflowActor:
         membership = self.directory.resolve(str(claims["uid"]), workspace_id)
         if membership is None:
             raise IdentityError("Workspace access denied.")
