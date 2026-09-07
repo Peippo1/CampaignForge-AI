@@ -185,6 +185,9 @@ tbody td:first-child { font-weight: 620; }
 .agent-compose textarea { width: 100%; min-height: 72px; resize: vertical; padding: .7rem 2.7rem .7rem .7rem; border: 1px solid var(--border); border-radius: .65rem; background: #f8fafc; font-size: .78rem; }
 .agent-compose small { color: var(--muted); font-size: .62rem; }
 .agent-submit { width: 100%; margin: .65rem 0 .35rem; }
+.agent-compose fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.agent-compose fieldset:disabled { opacity: .65; }
+.agent-compose select { width: 100%; min-height: 44px; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: .55rem; background: var(--surface); }
 .run-notice { display: flex; gap: .5rem; margin-top: .75rem; padding: .7rem; border-radius: .6rem; color: #1e3a8a; background: var(--primary-soft); font-size: .72rem; }
 .run-notice.error { color: #991b1b; background: #fef2f2; }
 .canvas-empty { padding: 3rem 1.5rem; }

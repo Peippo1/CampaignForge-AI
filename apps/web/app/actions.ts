@@ -55,7 +55,7 @@ export async function runAgentAction(campaignId: string, _state: ActionState, fo
   try {
     const job = await campaignForgeFetch<AgentJob>(`/v1/campaigns/${encodeURIComponent(campaignId)}/runs`, {
       method: "POST",
-      body: JSON.stringify({ kind: String(formData.get("kind") || "strategy"), instructions: text(formData, "instructions", 4000) }),
+      body: JSON.stringify({ kind: String(formData.get("kind") || "strategy"), instructions: text(formData, "instructions", 4000), brand_kit_id: String(formData.get("brand_kit_id") || "") || null }),
       idempotencyKey: text(formData, "idempotency_key", 80),
     });
     if (process.env.NODE_ENV !== "production" || process.env.CAMPAIGNFORGE_WEB_AUTH_MODE === "development") {
