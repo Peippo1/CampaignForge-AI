@@ -23,6 +23,13 @@ Low-cost development is the default: deterministic mock agents in tests, `gpt-5.
 
 ## Product Workflow
 
+Campaign generation now accepts an optional saved brand kit. The queued job captures its voice,
+audiences, facts, phrases, banned terms and compliance rules, so the worker uses the same context
+the editor selected. Cross-workspace kits are rejected. Generation requires owner/editor authority
+and the appropriate stage; the worker rechecks the stage before calling a provider. Completed jobs
+ignore sequential redelivery. Concurrent worker delivery still requires an atomic job claim before
+production acceptance. Firebase login, image generation/review UI and production export remain pending.
+
 CampaignForge AI is designed around one clear workflow:
 
 1. Brief

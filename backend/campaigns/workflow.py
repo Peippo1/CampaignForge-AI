@@ -310,6 +310,15 @@ class CampaignWorkflow:
         with self._lock:
             return self._repository.list_for_workspace(actor.workspace_id)
 
+    def validate_generation(self, actor: WorkflowActor, campaign_id: str, kind: str) -> Campaign:
+        """Reject unauthorized or obsolete work before calling a paid provider."""
+        campaign = self._get_for_actor(actor, campaign_id)
+        self._require_editor(actor, "generate campaign content")
+        expected = {"strategy": CampaignStage.DRAFT, "copy": CampaignStage.STRATEGY_APPROVED}
+        if kind not in expected or campaign.stage is not expected[kind]:
+            raise InvalidTransitionError("Generation is not available at this campaign stage.")
+        return campaign
+
     def _get_for_actor(self, actor: WorkflowActor, campaign_id: str) -> Campaign:
         with self._lock:
             campaign = self._repository.get(campaign_id)

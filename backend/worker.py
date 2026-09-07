@@ -20,6 +20,8 @@ class AgentJobProcessor:
         job = self.jobs.get(job_id, workspace_id)
         if job is None:
             raise KeyError(job_id)
+        if job.status == "succeeded":
+            return
         self.jobs.set_status(job_id, workspace_id, "running")
         try:
             campaign_id = str(job.payload["campaign_id"])
@@ -28,11 +30,19 @@ class AgentJobProcessor:
                 workspace_id=workspace_id,
                 role=Role.EDITOR,
             )
-            campaign = self.workflow.get_campaign(actor, campaign_id)
+            campaign = self.workflow.validate_generation(actor, campaign_id, job.kind.removeprefix("agent."))
+            brand = job.payload.get("brand") or {}
             request = AgentRequest(
                 campaign_name=campaign.title,
                 brief=str(job.payload["instructions"]),
-                brand=BrandContext(),
+                brand=BrandContext(
+                    voice=brand.get("voice", "Clear, credible, and useful"),
+                    audiences=brand.get("audiences", []),
+                    product_facts=brand.get("product_facts", []),
+                    required_terms=brand.get("required_phrases", []),
+                    banned_terms=brand.get("banned_terms", []),
+                    compliance_rules=brand.get("compliance_rules", []),
+                ),
             )
             result = self.runner.run(request)
             if isawaitable(result):

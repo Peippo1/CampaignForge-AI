@@ -48,7 +48,8 @@ class AssetReviewRequest(BaseModel):
 
 class AgentRunRequest(BaseModel):
     kind: str = Field(pattern="^(strategy|copy)$")
-    instructions: str = Field(min_length=1, max_length=4_000)
+    instructions: str = Field(min_length=20, max_length=4_000)
+    brand_kit_id: str | None = Field(default=None, max_length=36)
 
 
 class BrandKitCreate(BaseModel):
@@ -344,6 +345,8 @@ def create_app(  # noqa: C901 - endpoint registration is intentionally centraliz
         cached = idempotency.get(actor.workspace_id, operation, idempotency_key)
         if cached is not None:
             return cached
+        campaign_workflow.validate_generation(actor, campaign_id, body.kind)
+        brand_snapshot = _brand_payload(brands.get(actor, body.brand_kit_id)) if body.brand_kit_id else None
         job = jobs.enqueue(
             workspace_id=actor.workspace_id,
             kind=f"agent.{body.kind}",
@@ -352,6 +355,7 @@ def create_app(  # noqa: C901 - endpoint registration is intentionally centraliz
                 "instructions": body.instructions,
                 "requested_by": actor.user_id,
                 "model": settings.text_model,
+                "brand": brand_snapshot,
             },
         )
         payload = asdict(job)
